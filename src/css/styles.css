@@ -1,0 +1,30 @@
+
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+}
+nav button {
+    padding: 10px;
+    font-size: 16px;
+}
+.add-button {
+    margin: 10px 0;
+    padding: 8px 16px;
+}
+#product-form {
+    margin: 10px 0;
+}
+#product-form input, #product-form select {
+    margin-right: 10px;
+    padding: 5px;
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+th, td {
+    padding: 8px;
+    border: 1px solid #ccc;
+    text-align: left;
+}

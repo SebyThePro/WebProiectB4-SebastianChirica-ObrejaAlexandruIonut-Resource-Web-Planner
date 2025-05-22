@@ -1,0 +1,43 @@
+
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestionare Produse</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <h1>Pagina de introducere</h1>
+    <nav>
+        <button onclick="showProductSection()">Produse</button>
+    </nav>
+
+    <section id="product-section" style="display:none;">
+        <button onclick="openProductForm()" class="add-button">Adaugă produs</button>
+        <div id="product-form" style="display:none;">
+            <input type="text" id="product-name" placeholder="Nume produs">
+            <input type="number" id="product-quantity" placeholder="Cantitate">
+            <select id="product-unit">
+                <option value="kg">kg</option>
+                <option value="litri">litri</option>
+                <option value="buc">buc</option>
+            </select>
+            <button onclick="addProduct()">Publică</button>
+        </div>
+
+        <table id="product-list">
+            <thead>
+                <tr>
+                    <th>Denumire produs</th>
+                    <th>Cantitate</th>
+                    <th>Unitate</th>
+                    <th>Acțiuni</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </section>
+
+    <script src="js/script.js"></script>
+</body>
+</html>
