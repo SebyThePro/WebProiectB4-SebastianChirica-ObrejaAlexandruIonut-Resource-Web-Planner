@@ -1,0 +1,1 @@
+SELECT user_id, username, email, role, registration_date FROM users;
