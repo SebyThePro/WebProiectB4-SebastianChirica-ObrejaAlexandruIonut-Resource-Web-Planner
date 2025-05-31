@@ -1,43 +1,142 @@
-
 <!DOCTYPE html>
 <html lang="ro">
 <head>
     <meta charset="UTF-8">
-    <title>Gestionare Produse</title>
+    <title>Gestionare Depozite și Produse - Stil XP Windows Extensibil</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tahoma&family=Arial&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="css/styles.css">
 </head>
-<body>
-    <h1>Pagina de introducere</h1>
-    <nav>
-        <button onclick="showProductSection()">Produse</button>
-    </nav>
+<body class="xp-body">
+    <h1 class="xp-main-title">Gestionare Depozite și Produse</h1>
 
-    <section id="product-section" style="display:none;">
-        <button onclick="openProductForm()" class="add-button">Adaugă produs</button>
-        <div id="product-form" style="display:none;">
-            <input type="text" id="product-name" placeholder="Nume produs">
-            <input type="number" id="product-quantity" placeholder="Cantitate">
-            <select id="product-unit">
-                <option value="kg">kg</option>
-                <option value="litri">litri</option>
-                <option value="buc">buc</option>
-                <option value="metri">metri</option>
-            </select>
-            <button onclick="addProduct()">Publică</button>
+    <section id="storages-section" class="xp-panel">
+        <div class="xp-panel-title-bar">
+            <h2>Depozite</h2>
         </div>
-
-        <table id="product-list">
-            <thead>
-                <tr>
-                    <th>Denumire produs</th>
-                    <th>Cantitate</th>
-                    <th>Unitate</th>
-                    <th>Acțiuni</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
+        <div class="xp-panel-content">
+            <div class="add-storage-button-container"> <button onclick="openStorageModal()" class="xp-button add-button">Adaugă depozit +</button>
+            </div>
+            <div id="storages-list">
+                </div>
+        </div>
     </section>
+
+    <div id="storage-modal" class="modal-overlay" style="display:none;">
+        <div class="xp-window">
+            <div class="xp-window-title-bar">
+                <span id="modal-title" class="xp-title-text">Adaugă depozit nou</span>
+                <div class="xp-window-controls">
+                    <button class="xp-window-control-button close-button" onclick="closeStorageModal()" title="Închide"><span>&times;</span></button>
+                </div>
+            </div>
+            <div class="xp-window-content">
+                <div id="storage-modal-error" class="form-error-message xp-error-message" style="display:none;"></div>
+                <input type="hidden" id="storage-id">
+                <label for="storage-name-modal">Nume depozit:</label>
+                <input type="text" id="storage-name-modal" class="xp-input" placeholder="Nume depozit">
+                <label>Culoare bară titlu depozit:</label>
+                <div id="custom-color-picker" class="color-picker-container">
+                    </div>
+                <input type="hidden" id="selected-storage-color-modal">
+                <div class="xp-button-group">
+                    <button onclick="saveStorage()" id="save-storage-button" class="xp-button">Adaugă</button>
+                    <button onclick="closeStorageModal()" class="xp-button cancel-button">Anulează</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="custom-confirm-modal" class="modal-overlay" style="display:none;">
+        <div class="xp-window">
+            <div class="xp-window-title-bar">
+                <span id="custom-confirm-title" class="xp-title-text">Confirmare</span>
+                 <div class="xp-window-controls">
+                    <button class="xp-window-control-button close-button" onclick="handleConfirmCancel()" title="Închide"><span>&times;</span></button>
+                </div>
+            </div>
+            <div class="xp-window-content confirm-modal-content">
+                <div class="xp-confirm-icon-area">
+                     <i class="fas fa-exclamation-triangle xp-confirm-icon"></i>
+                </div>
+                <p id="custom-confirm-message"></p>
+                <div class="xp-button-group">
+                    <button id="custom-confirm-ok" class="xp-button confirm-ok-button">OK</button>
+                    <button id="custom-confirm-cancel" class="xp-button cancel-button">Anulează</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="custom-info-modal" class="modal-overlay" style="display:none;">
+        <div class="xp-window" style="min-width: 300px; max-width: 450px;">
+            <div class="xp-window-title-bar">
+                <span id="custom-info-title" class="xp-title-text">Informație</span>
+                 <div class="xp-window-controls">
+                    <button id="custom-info-close-button" class="xp-window-control-button close-button" title="Închide"><span>&times;</span></button>
+                </div>
+            </div>
+            <div class="xp-window-content info-modal-content" style="text-align: center; padding-top: 20px; padding-bottom: 20px;">
+                <div class="xp-info-icon-area" style="margin-bottom: 15px;">
+                     <i id="custom-info-icon" class="fas fa-info-circle xp-info-icon" style="font-size: 28px; color: #0078D7;"></i> </div>
+                <p id="custom-info-message" style="margin-bottom: 20px;"></p>
+                <div class="xp-button-group" style="text-align: center; border-top: none; padding-top:0;">
+                    <button id="custom-info-ok" class="xp-button confirm-ok-button" style="min-width: 80px;">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <button id="open-gradient-settings-button" class="gradient-settings-trigger" title="Setări Gradient Fundal">
+        <i class="fas fa-palette"></i>
+    </button>
+
+    <div id="gradient-settings-panel" class="gradient-settings-panel xp-window" style="display:none;">
+        <div class="xp-window-title-bar">
+            <span class="xp-title-text">Setări Gradient Fundal</span>
+            <div class="xp-window-controls">
+                <button id="close-gradient-settings-button" class="xp-window-control-button close-button" title="Închide"><span>&times;</span></button>
+            </div>
+        </div>
+        <div class="xp-window-content">
+            <div class="gradient-config-section xp-group-box">
+                <h4 class="xp-group-box-title">Configurează Gradient Nou / Editează</h4>
+                <div class="form-error-message xp-error-message gradient-panel-error" style="display:none;"></div>
+                <div>
+                    <label for="gradient-name">Nume Preset:</label>
+                    <input type="text" id="gradient-name" class="xp-input" placeholder="Ex: Favoritul Meu">
+                </div>
+                <div>
+                    <label for="gradient-color-top">Culoare Sus (Gradient):</label>
+                    <input type="color" id="gradient-color-top" class="xp-input" value="#23dbfa">
+                </div>
+                <div>
+                    <label for="gradient-color-bottom">Culoare Jos (Gradient):</label>
+                    <input type="color" id="gradient-color-bottom" class="xp-input" value="#01ff4a">
+                </div>
+                <div>
+                    <label for="gradient-speed">Viteză Animație (secunde per ciclu complet):</label>
+                    <input type="number" id="gradient-speed" class="xp-input" value="40" min="2" step="1">
+                </div>
+                <div class="xp-button-group">
+                    <button id="save-gradient-preset-button" class="xp-button">Salvează Preset</button>
+                </div>
+            </div>
+
+            <div class="gradient-presets-section xp-group-box">
+                <h4 class="xp-group-box-title">Presetări Salvate</h4>
+                <label for="saved-gradients-select">Alege un preset:</label>
+                <select id="saved-gradients-select" class="xp-select">
+                    </select>
+                <div class="xp-button-group">
+                    <button id="load-gradient-preset-button" class="xp-button">Încarcă Preset</button>
+                    <button id="delete-gradient-preset-button" class="xp-button">Șterge Preset</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script src="js/script.js"></script>
 </body>
