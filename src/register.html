@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <title>Inregistrare - Gestionare Consumabile</title>
+    <link rel="stylesheet" href="css/styles.css"> <style>
+        .auth-container {
+            width: 100%;
+            max-width: 420px; 
+            margin: 50px auto;
+            padding: 0;
+        }
+         .xp-body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body class="xp-body">
+    <div class="auth-container">
+        <div class="xp-window">
+            <div class="xp-window-title-bar">
+                <span class="xp-title-text">Inregistrare Utilizator Nou</span>
+            </div>
+            <div class="xp-window-content">
+                <div id="register-modal-error" class="form-error-message xp-error-message" style="display:none;"></div>
+                <div>
+                    <label for="register-username">Nume Utilizator:</label>
+                    <input type="text" id="register-username" class="xp-input" placeholder="Alege un nume de utilizator">
+                </div>
+                <div>
+                    <label for="register-email">Adresa Email:</label>
+                    <input type="email" id="register-email" class="xp-input" placeholder="exemplu@domeniu.com">
+                </div>
+                <div>
+                    <label for="register-password">Parola:</label>
+                    <input type="password" id="register-password" class="xp-input" placeholder="Minim 6-8 caractere">
+                </div>
+                <div>
+                    <label for="register-confirm-password">Confirma Parola:</label>
+                    <input type="password" id="register-confirm-password" class="xp-input" placeholder="Repeta parola">
+                </div>
+                <div class="xp-button-group" style="justify-content: center;">
+                    <button id="register-button" class="xp-button">Inregistreaza-te</button>
+                </div>
+                 <div style="text-align: center; margin-top: 15px; font-size: 0.9em;">
+                    Ai deja cont? <a href="login.html">Autentifica-te aici</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="js/auth.js"></script> </body>
+</html>
