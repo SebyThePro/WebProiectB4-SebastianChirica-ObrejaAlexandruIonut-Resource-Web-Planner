@@ -1,4 +1,4 @@
-/* XP Global Styles */
+
 :root {
     --xp-blue: #0A246A;
     --xp-title-text-color: #FFFFFF;
@@ -19,7 +19,7 @@
     --xp-title-grad-right: #69A6FE;
     --xp-title-grad-far-right: #A8C8FF;
     --page-bg-color-top: rgba(35, 219, 250, 1);
-    --page-bg-color-mid: rgba(19, 237, 159, 1); 
+    --page-bg-color-mid: rgba(19, 237, 159, 1);
     --page-bg-color-bottom: rgba(1, 255, 74, 1);
     --page-bg-animation-speed: 40s;
 }
@@ -154,7 +154,6 @@
     align-items: center;
     justify-content: space-between;
     border-radius: 0;
-    /* background-image si color sunt setate de JS */
 }
 .storage-title-bar-text {
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -470,6 +469,7 @@
 .xp-confirm-icon { font-size: 30px; color: #FFC000; }
 .xp-info-icon { font-size: 28px; color: #0078D7; } 
 #custom-confirm-message, #custom-info-message { margin-bottom: 20px; font-size: var(--xp-font-size); }
+
 
 .gradient-settings-trigger {
     position: fixed;

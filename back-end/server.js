@@ -1,9 +1,11 @@
-
+// back-end/server.js
 const http = require('http');
 const oracledb = require('oracledb');
 const dbConfig = require('./db_config/db_config.js');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 
 const JWT_SECRET = 'cheiaTaSecretaSuperComplexa123!';
 
@@ -14,7 +16,7 @@ async function parseRequestBody(req) {
             body += chunk.toString();
         });
         req.on('end', () => {
-            if (!body) { 
+            if (!body) {
                 return resolve({});
             }
             try {
@@ -31,30 +33,63 @@ async function parseRequestBody(req) {
     });
 }
 
+
+async function setupEmailTransport() {
+    const useEthereal = false; 
+
+    if (useEthereal) {
+        let nodemailerTestAccount = await nodemailer.createTestAccount();
+        console.log("Ethereal test account CREAT (sau refolosit):");
+        console.log("User:", nodemailerTestAccount.user);
+        console.log("Pass:", nodemailerTestAccount.pass);
+        console.log("Previzualizeaza emailurile trimise la: " + nodemailer.getTestMessageUrl({messageId: 'test-id'})); 
+        
+        return nodemailer.createTransport({
+            host: 'smtp.ethereal.email',
+            port: 587,
+            secure: false,
+            auth: {
+                user: nodemailerTestAccount.user,
+                pass: nodemailerTestAccount.pass,
+            },
+        });
+    } else {
+        // --- CONFIGURARE PENTRU GMAIL ---
+        console.log("Se incearca configurarea transportului Gmail...");
+        return nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: 'sebychirica100@gmail.com', 
+                pass: 'gradqzdkjzrwdjtd'       
+            }
+        });
+    }
+}
+
 try {
-    oracledb.initOracleClient({ libDir: 'C:\\Oracle\\instantclient_23_8' });
+    oracledb.initOracleClient({ libDir: 'C:\\Oracle\\instantclient_23_8' }); 
     console.log("Oracle Client initializat cu succes din initOracleClient.");
 } catch (err) {
     console.error("Eroare FATALA la initializarea Oracle Client:", err);
     console.error("Verifica daca Oracle Instant Client este instalat corect si calea specificata in initOracleClient este valida.");
     console.error("Verifica si daca ai Microsoft Visual C++ Redistributable corespunzator instalat si ai repornit sistemul.");
     console.error("Aceasta eroare opreste pornirea serverului.");
-    process.exit(1); 
+    process.exit(1);
 }
 
 function authenticateToken(req, res) {
-    const authHeader = req.headers['authorization']; 
-    const token = authHeader && authHeader.split(' ')[1]; 
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
 
     if (token == null) {
-        res.writeHead(401, { 'Content-Type': 'application/json' }); 
+        res.writeHead(401, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ message: 'Token de autentificare lipsa.' }));
-        return null; 
+        return null;
     }
 
     try {
         const decodedToken = jwt.verify(token, JWT_SECRET);
-        return decodedToken; 
+        return decodedToken;
     } catch (err) {
         console.error("Eroare la verificarea token-ului:", err.message);
         res.writeHead(403, { 'Content-Type': 'application/json' });
@@ -69,7 +104,7 @@ const server = http.createServer(async (req, res) => {
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') {
-        res.writeHead(204); 
+        res.writeHead(204);
         res.end();
         return;
     }
@@ -77,30 +112,21 @@ const server = http.createServer(async (req, res) => {
     if (req.url === '/api/register' && req.method === 'POST') {
         try {
             const { username, email, password } = await parseRequestBody(req);
-
             if (!username || !email || !password) {
                 res.writeHead(400, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ message: 'Nume utilizator, email si parola sunt obligatorii.' }));
                 return;
             }
-
             const hashedPassword = await bcrypt.hash(password, 10);
             let connection;
             try {
                 connection = await oracledb.getConnection(dbConfig);
                 const result = await connection.execute(
                     `BEGIN create_new_user(:username, :email, :password_hash, :user_id, :error_message); END;`,
-                    {
-                        username: username,
-                        email: email,
-                        password_hash: hashedPassword,
-                        user_id: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
-                        error_message: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 200 }
-                    }
+                    { username, email, password_hash: hashedPassword, user_id: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER }, error_message: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 200 } }
                 );
                 const errorMessage = result.outBinds.error_message;
                 const userId = result.outBinds.user_id;
-
                 if (errorMessage) {
                     res.writeHead(409, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({ message: errorMessage }));
@@ -113,9 +139,7 @@ const server = http.createServer(async (req, res) => {
                 res.writeHead(500, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ message: 'Eroare interna la inregistrare.' }));
             } finally {
-                if (connection) {
-                    try { await connection.close(); } catch (closeErr) { console.error("Eroare la inchiderea conexiunii (register):", closeErr); }
-                }
+                if (connection) { try { await connection.close(); } catch (closeErr) { console.error("Eroare la inchiderea conexiunii (register):", closeErr); } }
             }
         } catch (parseErr) {
             console.error("Eroare la parsarea corpului cererii (register):", parseErr);
@@ -126,29 +150,18 @@ const server = http.createServer(async (req, res) => {
     else if (req.url === '/api/login' && req.method === 'POST') {
         try {
             const { identifier, password } = await parseRequestBody(req);
-
             if (!identifier || !password) {
                 res.writeHead(400, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ message: 'Identificator (username/email) si parola sunt obligatorii.' }));
                 return;
             }
-
             let connection;
             try {
                 connection = await oracledb.getConnection(dbConfig);
                 const result = await connection.execute(
                     `BEGIN get_user_by_identifier(:identifier, :o_user_id, :o_username, :o_email, :o_password_hash, :o_role, :o_error_message); END;`,
-                    {
-                        identifier: identifier,
-                        o_user_id: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
-                        o_username: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 50 },
-                        o_email: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 100 },
-                        o_password_hash: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 255 },
-                        o_role: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 20 },
-                        o_error_message: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 200 }
-                    }
+                    { identifier, o_user_id: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER }, o_username: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 50 }, o_email: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 100 }, o_password_hash: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 255 }, o_role: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 20 }, o_error_message: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 200 } }
                 );
-
                 const dbErrorMessage = result.outBinds.o_error_message;
                 const userId = result.outBinds.o_user_id;
                 const storedPasswordHash = result.outBinds.o_password_hash;
@@ -161,41 +174,22 @@ const server = http.createServer(async (req, res) => {
                     res.end(JSON.stringify({ message: dbErrorMessage || 'Credentiale invalide.' }));
                     return;
                 }
-
                 const passwordMatch = await bcrypt.compare(password, storedPasswordHash);
-
                 if (passwordMatch) {
-                    const tokenPayload = {
-                        userId: userId,
-                        username: dbUsername,
-                        role: dbRole
-                    };
-                    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '1h' }); 
-
+                    const tokenPayload = { userId, username: dbUsername, role: dbRole };
+                    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '1h' });
                     res.writeHead(200, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({
-                        message: 'Autentificare reusita!',
-                        token: token,
-                        user: {
-                            id: userId,
-                            username: dbUsername,
-                            email: dbEmail,
-                            role: dbRole
-                        }
-                    }));
+                    res.end(JSON.stringify({ message: 'Autentificare reusita!', token, user: { id: userId, username: dbUsername, email: dbEmail, role: dbRole } }));
                 } else {
                     res.writeHead(401, { 'Content-Type': 'application/json' });
                     res.end(JSON.stringify({ message: 'Credentiale invalide.' }));
                 }
-
             } catch (dbErr) {
                 console.error("Eroare Baza de Date la login:", dbErr);
                 res.writeHead(500, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ message: 'Eroare interna la login.' }));
             } finally {
-                if (connection) {
-                    try { await connection.close(); } catch (closeErr) { console.error("Eroare la inchiderea conexiunii (login):", closeErr); }
-                }
+                if (connection) { try { await connection.close(); } catch (closeErr) { console.error("Eroare la inchiderea conexiunii (login):", closeErr); } }
             }
         } catch (parseErr) {
             console.error("Eroare la parsarea corpului cererii (login):", parseErr);
@@ -203,10 +197,162 @@ const server = http.createServer(async (req, res) => {
             res.end(JSON.stringify({ message: parseErr.message || 'Format JSON invalid in corpul cererii.' }));
         }
     }
+    else if (req.url === '/api/forgot-password' && req.method === 'POST') {
+        try {
+            const { email } = await parseRequestBody(req);
+            if (!email) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ message: 'Adresa de email este obligatorie.' }));
+                return;
+            }
+            let connection;
+            try {
+                connection = await oracledb.getConnection(dbConfig);
+                const userLookupResult = await connection.execute(
+                    `BEGIN get_user_by_identifier(:identifier, :o_user_id, :o_username, :o_email, :o_password_hash, :o_role, :o_error_message); END;`,
+                    { identifier: email, o_user_id: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER }, o_username: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 50 }, o_email: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 100 }, o_password_hash: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 255 }, o_role: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 20 }, o_error_message: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 200 } }
+                );
+                const userId = userLookupResult.outBinds.o_user_id;
+                const userEmail = userLookupResult.outBinds.o_email;
+                const dbErrorUserLookup = userLookupResult.outBinds.o_error_message;
+
+                if (!userId || dbErrorUserLookup) {
+                    console.log(`Cerere resetare parola pentru email negasit sau eroare DB: ${email}, Eroare: ${dbErrorUserLookup}`);
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ message: 'Daca un cont cu acest email exista, instructiunile de resetare au fost trimise.' }));
+                    return;
+                }
+
+                const resetTokenPlain = crypto.randomBytes(32).toString('hex');
+                const resetTokenHash = await bcrypt.hash(resetTokenPlain, 10);
+                const expiresAt = new Date(Date.now() + 15 * 60 * 1000); 
+
+                const storeTokenResult = await connection.execute(
+                    `BEGIN store_password_reset_token(:user_id, :token_hash, :token_plain, :expires_at, :o_success, :o_error_message); END;`,
+                    { user_id: userId, token_hash: resetTokenHash, token_plain: resetTokenPlain, expires_at: expiresAt, o_success: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER }, o_error_message: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 200 } }
+                );
+                const storeSuccess = storeTokenResult.outBinds.o_success;
+                const storeErrorMessage = storeTokenResult.outBinds.o_error_message;
+
+                if (!storeSuccess || storeErrorMessage) {
+                    console.error("Eroare la stocarea token-ului de resetare in DB:", storeErrorMessage);
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ message: 'A aparut o eroare la procesarea cererii. Incercati mai tarziu.' }));
+                    return;
+                }
+                
+                const resetLink = `http://127.0.0.1:5500/src/reset-password.html?token=${resetTokenPlain}`;
+                
+                const mailTransport = await setupEmailTransport();
+                try {
+                    const info = await mailTransport.sendMail({
+                        from: '"Admin Proiect Consumabile" <sebychirica100@gmail.com>',
+                        to: userEmail,
+                        subject: 'Cerere Resetare Parola - Proiect Gestionare Consumabile',
+                        html: `<p>Buna ziua,</p><p>Pentru a reseta parola contului tau (${userEmail}), te rugam sa accesezi urmatorul link (valabil 15 minute):</p><p><a href="${resetLink}">${resetLink}</a></p><p>Daca nu ai solicitat aceasta modificare, te rugam sa ignori acest email.</p>`
+                    });
+                    console.log(`Email de resetare trimis catre ${userEmail}. Message ID: ${info.messageId}`);
+                } catch (emailError) {
+                    console.error(`Eroare la trimiterea email-ului de resetare catre ${userEmail}:`, emailError);
+                }
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ message: 'Daca un cont cu acest email exista, instructiunile de resetare au fost trimise.' }));
+            } catch (dbErr) {
+                console.error("Eroare Baza de Date la /api/forgot-password:", dbErr);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ message: 'Eroare interna la procesarea cererii.' }));
+            } finally {
+                if (connection) { try { await connection.close(); } catch (closeErr) { console.error("Eroare la inchiderea conexiunii (forgot-password):", closeErr); } }
+            }
+        } catch (parseErr) {
+            console.error("Eroare la parsarea corpului cererii (forgot-password):", parseErr);
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ message: parseErr.message || 'Format JSON invalid.' }));
+        }
+    }
+    else if (req.url === '/api/reset-password' && req.method === 'POST') {
+        try {
+            const { token, newPassword, confirmPassword } = await parseRequestBody(req);
+
+            if (!token || !newPassword || !confirmPassword) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ message: 'Token-ul, noua parola si confirmarea parolei sunt obligatorii.' }));
+                return;
+            }
+            if (newPassword !== confirmPassword) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ message: 'Parolele nu se potrivesc.' }));
+                return;
+            }
+            if (newPassword.length < 6) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ message: 'Noua parola trebuie sa aiba minim 6 caractere.' }));
+                return;
+            }
+
+            const tokenHash = await bcrypt.hash(token, 10);
+            let connection;
+            try {
+                connection = await oracledb.getConnection(dbConfig);
+
+                const validationResult = await connection.execute(
+                    `BEGIN validate_reset_token(:p_token_hash, :o_user_id, :o_is_valid, :o_error_message); END;`,
+                    { p_token_hash: tokenHash, o_user_id: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER }, o_is_valid: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER }, o_error_message: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 200 } }
+                );
+                const userId = validationResult.outBinds.o_user_id;
+                const isValidToken = validationResult.outBinds.o_is_valid;
+                const validationErrorMessage = validationResult.outBinds.o_error_message;
+
+                if (!isValidToken || !userId || validationErrorMessage) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ message: validationErrorMessage || 'Token de resetare invalid, expirat sau deja utilizat.' }));
+                    return;
+                }
+
+                const newHashedPassword = await bcrypt.hash(newPassword, 10);
+
+                const updatePasswordResult = await connection.execute(
+                    `BEGIN update_user_password(:p_user_id, :p_new_password_hash, :o_success, :o_error_message); END;`,
+                    { p_user_id: userId, p_new_password_hash: newHashedPassword, o_success: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER }, o_error_message: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 200 } }
+                );
+                const updateSuccess = updatePasswordResult.outBinds.o_success;
+                const updateErrorMessage = updatePasswordResult.outBinds.o_error_message;
+
+                if (!updateSuccess || updateErrorMessage) {
+                    console.error("Eroare la actualizarea parolei in DB:", updateErrorMessage);
+                    res.writeHead(500, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ message: 'Nu s-a putut actualiza parola. Incercati mai tarziu.' }));
+                    return;
+                }
+
+                try {
+                    await connection.execute(
+                        `BEGIN mark_reset_token_as_used(:p_token_hash, :o_success, :o_error_message); END;`,
+                        { p_token_hash: tokenHash, o_success: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER }, o_error_message: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 200 } }
+                    );
+                } catch (markTokenErr) {
+                    console.error("Eroare la marcarea token-ului ca folosit (non-critica):", markTokenErr);
+                }
+
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ message: 'Parola a fost resetata cu succes!' }));
+
+            } catch (dbErr) {
+                console.error("Eroare Baza de Date la /api/reset-password:", dbErr);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ message: 'Eroare interna la procesarea cererii de resetare.' }));
+            } finally {
+                if (connection) { try { await connection.close(); } catch (closeErr) { console.error("Eroare la inchiderea conexiunii (reset-password):", closeErr); } }
+            }
+        } catch (parseErr) {
+            console.error("Eroare la parsarea corpului cererii (reset-password):", parseErr);
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ message: parseErr.message || 'Format JSON invalid.' }));
+        }
+    }
     else if (req.url === '/api/data-protejata' && req.method === 'GET') {
         const userDataFromToken = authenticateToken(req, res);
-
-        if (userDataFromToken) { 
+        if (userDataFromToken) {
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({
                 message: `Salut, ${userDataFromToken.username}! Ai accesat datele protejate.`,
