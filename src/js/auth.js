@@ -96,7 +96,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// --- FUNCTII PENTRU AFISAREA ERORILOR/SUCCESULUI IN FORMULARE ---
 function displayAuthMessage(formType, message, isError = true) {
     const errorDivId = formType === 'login' ? 'login-modal-error' :
                        formType === 'register' ? 'register-modal-error' :

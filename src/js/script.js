@@ -1,6 +1,4 @@
-// js/script.js
 
-// Variabile globale
 let storages = [];
 let editingStorageId = null;
 let confirmOkCallback = null;
@@ -27,7 +25,6 @@ const userImageColors = [
 ];
 
 document.addEventListener('DOMContentLoaded', () => {
-    // --- VERIFICARE AUTENTIFICARE ---
     checkAuthentication(); 
 
     const logoutButton = document.getElementById('logout-button');
@@ -134,8 +131,6 @@ function handleLogout() {
 }
 
 
-// --- RESTUL FUNCTIILOR EXISTENTE (PENTRU DEPOZITE, MODALE, CULORI, GRADIENT ETC.) ---
-// --- Acestea vor continua sa functioneze cu localStorage deocamdata ---
 
 function lightenHexColor(hex, percent) {
     if (!hex || typeof hex !== 'string') return '#FFFFFF';
@@ -454,24 +449,46 @@ function saveStorages() {
     localStorage.setItem('storages', JSON.stringify(storages));
 }
 
-function loadStorages() {
-    const storedStorages = localStorage.getItem('storages');
-    if (storedStorages) {
-        try {
-            storages = JSON.parse(storedStorages);
-            if (!Array.isArray(storages)) storages = [];
-        } catch (e) {
-            console.error("Eroare la parsarea datelor din localStorage pentru 'storages':", e);
-            storages = [];
-        }
-        storages.forEach(s => {
-            if (!s.titleBarColor) s.titleBarColor = s.color || userImageColors[0];
-            if (!s.titleBarTextColor) s.titleBarTextColor = getContrastingTextColor(s.titleBarColor);
-            if (!s.products) s.products = [];
-            s.products.forEach(p => { if (p.id === undefined) p.id = Date.now() + Math.random(); });
+async function loadStorages() {
+      const token = localStorage.getItem('authToken');
+    if (!token) {
+        console.log("Nu se pot incarca depozitele, utilizatorul nu este autentificat.");
+        return;
+    }
+
+    try {
+        const response = await fetch('http://localhost:3000/api/storages', {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
         });
-    } else {
+
+        if (!response.ok) {
+            if (response.status === 401 || response.status === 403) {
+                console.error('Token invalid sau expirat. Se redirectioneaza la login.');
+                handleLogout();
+                return;
+            }
+            const errorData = await response.json();
+            throw new Error(errorData.message || `Eroare HTTP: ${response.status}`);
+        }
+
+        const data = await response.json();
+        storages = data.map(s => ({ 
+            id: s.storageId, 
+            name: s.name,
+            titleBarColor: s.titleBarColor,
+            titleBarTextColor: s.titleBarTextColor, 
+            products: s.products || [] 
+        }));
+        console.log("Depozite incarcate de la API:", storages);
+        renderStorages();
+    } catch (error) {
+        console.error("Eroare la incarcarea depozitelor de la API:", error);
+        showInfoModal(`Eroare la incarcarea depozitelor: ${error.message}`, "Eroare Retea", "fa-ethernet", "#D81E05");
         storages = [];
+        renderStorages();
     }
 }
 
@@ -576,36 +593,97 @@ function closeStorageModal() {
     editingStorageId = null;
 }
 
-function saveStorage() {
+async function saveStorage() {
     const modalOverlay = document.getElementById('storage-modal');
     if (!modalOverlay) return;
     const errorContainer = modalOverlay.querySelector('.xp-window-content');
     if (!errorContainer) return;
     hideFormError(errorContainer);
+
     const nameInput = document.getElementById('storage-name-modal');
     const selectedColorInput = document.getElementById('selected-storage-color-modal');
-    if (!nameInput || !selectedColorInput) {
+    const storageIdInput = document.getElementById('storage-id'); 
+
+    if (!nameInput || !selectedColorInput || !storageIdInput) {
         if (errorContainer) showFormError(errorContainer, 'Eroare interna in formular.'); return;
     }
+
     const name = nameInput.value.trim();
     const selectedTitleBarColor = selectedColorInput.value;
+    const titleBarTextColor = getContrastingTextColor(selectedTitleBarColor);
+
     if (!name) { if (errorContainer) showFormError(errorContainer, 'Numele depozitului nu poate fi gol!'); return; }
     if (!selectedTitleBarColor) { if (errorContainer) showFormError(errorContainer, 'Trebuie sa selectezi o culoare pentru bara de titlu!'); return; }
-    const isNameTaken = storages.some(s => s.name.toLowerCase() === name.toLowerCase() && s.id !== editingStorageId);
-    if (isNameTaken) { if (errorContainer) showFormError(errorContainer, 'Exista deja un depozit cu acest nume!'); return; }
-    const titleBarTextColor = getContrastingTextColor(selectedTitleBarColor);
-    if (editingStorageId !== null && editingStorageId !== undefined) {
-        const storageIndex = storages.findIndex(s => s.id === editingStorageId);
-        if (storageIndex > -1) {
-            storages[storageIndex].name = name;
-            storages[storageIndex].titleBarColor = selectedTitleBarColor;
-            storages[storageIndex].titleBarTextColor = titleBarTextColor;
-        }
-    } else {
-        const newStorage = { id: Date.now() + Math.random(), name: name, titleBarColor: selectedTitleBarColor, titleBarTextColor: titleBarTextColor, products: [] };
-        storages.push(newStorage);
+    
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+        showInfoModal("Sesiunea a expirat sau nu sunteti autentificat. Va rugam sa va reautentificati.", "Eroare Autentificare", "fa-user-slash");
+        handleLogout(); 
+        return;
     }
-    saveStorages(); renderStorages(); closeStorageModal();
+
+    const storageData = {
+        name: name,
+        titleBarColor: selectedTitleBarColor,
+        titleBarTextColor: titleBarTextColor 
+    };
+
+    let url = 'http://localhost:3000/api/storages';
+    let method = 'POST';
+
+    if (editingStorageId) { 
+        url += `/${editingStorageId}`;
+        method = 'PUT';
+    }
+
+    try {
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(storageData)
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            if (response.status === 401 || response.status === 403) {
+                handleLogout(); return;
+            }
+            if (errorContainer) showFormError(errorContainer, data.message || `Eroare HTTP: ${response.status}`);
+            throw new Error(data.message || `Eroare HTTP: ${response.status}`);
+        }
+
+        if (method === 'POST' && data.storageId) { 
+            const newStorage = {
+                id: data.storageId,
+                name: data.name,
+                titleBarColor: data.titleBarColor,
+                titleBarTextColor: data.titleBarTextColor, 
+                products: []
+            };
+            storages.push(newStorage);
+        } else if (method === 'PUT' && editingStorageId) { 
+            const storageIndex = storages.findIndex(s => s.id === editingStorageId);
+            if (storageIndex > -1) {
+                storages[storageIndex].name = data.name || name; 
+                storages[storageIndex].titleBarColor = data.titleBarColor || selectedTitleBarColor;
+                storages[storageIndex].titleBarTextColor = data.titleBarTextColor || titleBarTextColor;
+            }
+        }
+        
+        renderStorages();
+        closeStorageModal();
+        showInfoModal(data.message || (method === 'POST' ? "Depozit adaugat cu succes!" : "Depozit actualizat cu succes!"), "Succes");
+
+    } catch (error) {
+        console.error(`Eroare la ${method === 'POST' ? 'adaugarea' : 'actualizarea'} depozitului:`, error);
+        if (errorContainer && !errorContainer.querySelector('.form-error-message.xp-error-message').textContent) {
+             showFormError(errorContainer, `Eroare de retea sau server: ${error.message}`);
+        }
+    }
 }
 
 function renderStorages() {
@@ -723,73 +801,243 @@ function renderStorages() {
     });
 }
 
-function deleteStorage(storageId, confirmTitle = "Confirmare Stergere") {
+async function deleteStorage(storageId, confirmTitle = "Confirmare Stergere") {
     const numericStorageId = typeof storageId === 'string' ? parseInt(storageId, 10) : storageId;
     const storage = storages.find(s => s.id === numericStorageId);
-    const message = storage ? `Sunteti sigur ca doriti sa stergeti depozitul "${storage.name}" si toate produsele continute?` : 'Sunteti sigur ca doriti sa stergeti acest depozit?';
-    showCustomConfirm(message, confirmTitle, () => {
-        storages = storages.filter(s => s.id !== numericStorageId);
-        saveStorages(); renderStorages();
-        if (editingStorageId === numericStorageId) closeStorageModal();
+    const message = storage
+        ? `Sunteti sigur ca doriti sa stergeti depozitul "${storage.name}" si toate produsele continute?`
+        : 'Sunteti sigur ca doriti sa stergeti acest depozit?';
+
+    showCustomConfirm(message, confirmTitle, async () => {
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+            showInfoModal("Sesiunea a expirat sau nu sunteti autentificat. Va rugam sa va reautentificati.", "Eroare Autentificare", "fa-user-slash");
+            handleLogout();
+            return;
+        }
+
+        try {
+            const response = await fetch(`http://localhost:3000/api/storages/${numericStorageId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                if (response.status === 401 || response.status === 403) {
+                    handleLogout(); return;
+                }
+                throw new Error(data.message || `Eroare HTTP: ${response.status}`);
+            }
+
+            storages = storages.filter(s => s.id !== numericStorageId);
+            renderStorages();
+            if (editingStorageId === numericStorageId) closeStorageModal(); 
+            showInfoModal(data.message || `Depozitul "${storage ? storage.name : ''}" a fost sters.`, "Stergere Reusita", "fa-trash-alt");
+
+        } catch (error) {
+            console.error("Eroare la stergerea depozitului:", error);
+            showInfoModal(`Eroare la stergerea depozitului: ${error.message}`, "Eroare Retea", "fa-ethernet", "#D81E05");
+        }
     });
 }
 
-function renderProductsInCard(storageId, targetTableBodyElement) {
-    if(!targetTableBodyElement) return;
-    const numericStorageId = typeof storageId === 'string' ? parseInt(storageId, 10) : storageId;
-    const storage = storages.find(s => s.id === numericStorageId);
-    targetTableBodyElement.innerHTML = "";
-    if (storage && storage.products && storage.products.length > 0) {
-        storage.products.forEach(product => {
-            const row = targetTableBodyElement.insertRow(); row.className = 'xp-table-row';
-            row.innerHTML = `<td data-label="Denumire">${product.name}</td> <td data-label="Cantitate">${product.quantity}</td> <td data-label="Unitate">${product.unit}</td> <td data-label="Actiuni"><button class="xp-button xp-button-table-action" onclick="deleteProductFromCard(${numericStorageId}, ${product.id})">Sterge</button></td>`;
+async function renderProductsInCard(storageId, targetTableBodyElement) {
+    if (!targetTableBodyElement) {
+        console.error("Elementul tbody tinta pentru produse nu a fost gasit pentru storageId:", storageId);
+        return;
+    }
+
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+        targetTableBodyElement.innerHTML = '<tr><td colspan="4" class="xp-empty-message">Eroare de autentificare. Reincarcati pagina.</td></tr>';
+        return;
+    }
+
+    targetTableBodyElement.innerHTML = '<tr><td colspan="4" class="xp-empty-message">Se incarca produsele...</td></tr>';
+
+    try {
+        const response = await fetch(`http://localhost:3000/api/items?storageId=${storageId}`, {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` }
         });
-    } else {
-        const row = targetTableBodyElement.insertRow(); const cell = row.insertCell();
-        cell.colSpan = 4; cell.className = 'xp-empty-message'; cell.textContent = 'Nu exista produse in acest depozit.';
+
+        if (!response.ok) {
+            if (response.status === 401 || response.status === 403) { handleLogout(); return; }
+            const errorData = await response.json();
+            throw new Error(errorData.message || `Eroare HTTP: ${response.status}`);
+        }
+
+        const items = await response.json();
+        targetTableBodyElement.innerHTML = ""; 
+
+        if (items && items.length > 0) {
+            items.forEach(product => {
+                const row = targetTableBodyElement.insertRow();
+                row.className = 'xp-table-row';
+                row.innerHTML = `
+                    <td data-label="Denumire">${product.name}</td>
+                    <td data-label="Cantitate">${product.quantity}</td>
+                    <td data-label="Unitate">${product.unitOfMeasure}</td> 
+                    <td data-label="Actiuni">
+                        <button class="xp-button xp-button-table-action" onclick="deleteProductFromCard(${storageId}, ${product.itemId}, '${product.name.replace(/'/g, "\\'")}')">Sterge</button>
+                    </td>
+                `;
+            });
+        } else {
+            const row = targetTableBodyElement.insertRow();
+            const cell = row.insertCell();
+            cell.colSpan = 4; 
+            cell.className = 'xp-empty-message';
+            cell.textContent = 'Nu exista produse in acest depozit.';
+        }
+    } catch (error) {
+        console.error(`Eroare la incarcarea produselor pentru storageId ${storageId}:`, error);
+        targetTableBodyElement.innerHTML = `<tr><td colspan="4" class="xp-empty-message">Eroare la incarcarea produselor: ${error.message}</td></tr>`;
     }
 }
 
-function addProductInCard(storageId, formElement, targetTableBodyElement, addButtonElement, expandableContentElement) {
-    const errorDisplayContainer = formElement; if (errorDisplayContainer) hideFormError(errorDisplayContainer);
+async function addProductInCard(storageId, formElement, targetTableBodyElement, addButtonElement, expandableContentElement) {
+    const errorDisplayContainer = formElement; 
+    if (errorDisplayContainer) hideFormError(errorDisplayContainer);
+    
     const numericStorageId = typeof storageId === 'string' ? parseInt(storageId, 10) : storageId;
-    const storage = storages.find(s => s.id === numericStorageId);
-    if (!storage || !formElement || !targetTableBodyElement || !addButtonElement || !expandableContentElement) return;
+
+    if (!formElement || !targetTableBodyElement || !addButtonElement || !expandableContentElement) {
+        console.error("Elemente DOM lipsa pentru addProductInCard");
+        return;
+    }
+
     const nameInput = formElement.querySelector('.product-name-in-card');
     const quantityInput = formElement.querySelector('.product-quantity-in-card');
     const unitInput = formElement.querySelector('.product-unit-in-card');
-    if(!nameInput || !quantityInput || !unitInput) { if(errorDisplayContainer) showFormError(errorDisplayContainer, 'Eroare interna in formularul de produs.'); return; }
-    const name = nameInput.value.trim(); const quantity = quantityInput.value; const unit = unitInput.value;
-    if (!name || !quantity || !unit) { if(errorDisplayContainer) showFormError(errorDisplayContainer, 'Toate campurile sunt obligatorii!'); return; }
-    const parsedQuantity = parseFloat(quantity);
-    if (isNaN(parsedQuantity) || parsedQuantity < 0) { if(errorDisplayContainer) showFormError(errorDisplayContainer, 'Cantitatea trebuie sa fie un numar valid si pozitiv.'); return; }
-    const newProduct = { id: Date.now() + Math.random(), name: name, quantity: parsedQuantity, unit: unit };
-    if (!storage.products) storage.products = [];
-    storage.products.push(newProduct); saveStorages(); renderProductsInCard(numericStorageId, targetTableBodyElement);
-    nameInput.value = ''; quantityInput.value = ''; formElement.style.display = 'none'; addButtonElement.style.display = 'block';
-    if (expandableContentElement.classList.contains('expanded')) requestAnimationFrame(() => { if(expandableContentElement.classList.contains('expanded')) expandableContentElement.style.maxHeight = expandableContentElement.scrollHeight + "px"; });
+
+    if(!nameInput || !quantityInput || !unitInput) { 
+        if(errorDisplayContainer) showFormError(errorDisplayContainer, 'Eroare interna in formularul de produs.'); 
+        return; 
+    }
+
+    const name = nameInput.value.trim();
+    const quantityStr = quantityInput.value.trim();
+    const unit_of_measure = unitInput.value;
+
+    if (!name || !quantityStr || !unit_of_measure) { 
+        if(errorDisplayContainer) showFormError(errorDisplayContainer, 'Nume, cantitate si unitate sunt obligatorii!'); 
+        return; 
+    }
+    
+    const quantity = parseFloat(quantityStr);
+    if (isNaN(quantity) || quantity < 0) { 
+        if(errorDisplayContainer) showFormError(errorDisplayContainer, 'Cantitatea trebuie sa fie un numar valid si pozitiv.'); 
+        return; 
+    }
+
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+        showInfoModal("Sesiunea a expirat. Va rugam sa va reautentificati.", "Eroare Autentificare");
+        handleLogout();
+        return;
+    }
+
+    const productData = {
+        storage_id: numericStorageId,
+        category_id: null, 
+        name,
+        quantity,
+        unit_of_measure,
+        description: null, 
+        low_stock_threshold: null,
+        expiry_date: null,
+        check_date: null
+    };
+
+    try {
+        const response = await fetch('http://localhost:3000/api/items', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(productData)
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            if (response.status === 401 || response.status === 403) { handleLogout(); return; }
+            if (errorDisplayContainer) showFormError(errorDisplayContainer, data.message || `Eroare HTTP: ${response.status}`);
+            throw new Error(data.message || `Eroare HTTP: ${response.status}`);
+        }
+
+        showInfoModal(data.message || "Produs adaugat cu succes!", "Succes");
+        
+        nameInput.value = '';
+        quantityInput.value = '';
+        unitInput.value = 'buc'; 
+        formElement.style.display = 'none';
+        addButtonElement.style.display = 'block';
+
+        await renderProductsInCard(numericStorageId, targetTableBodyElement);
+        
+        if (expandableContentElement.classList.contains('expanded')) {
+            requestAnimationFrame(() => {
+                 if(expandableContentElement.classList.contains('expanded')) expandableContentElement.style.maxHeight = expandableContentElement.scrollHeight + "px";
+            });
+        }
+
+    } catch (error) {
+        console.error("Eroare la adaugarea produsului:", error);
+        if (errorDisplayContainer && !errorDisplayContainer.querySelector('.form-error-message.xp-error-message').textContent) {
+            showFormError(errorDisplayContainer, `Eroare de retea sau server: ${error.message}`);
+        }
+    }
 }
 
-function deleteProductFromCard(storageId, productId) {
-    const numericStorageId = typeof storageId === 'string' ? parseInt(storageId, 10) : storageId;
-    const numericProductId = typeof productId === 'string' ? parseInt(productId, 10) : productId;
-    const storage = storages.find(s => s.id === numericStorageId);
-    if (storage && storage.products) {
-        const product = storage.products.find(p => p.id === numericProductId);
-        const confirmTitle = product ? `Stergeti produsul "${product.name}"?` : "Confirmare Stergere";
-        const message = `Sunteti sigur ca doriti sa stergeti acest produs?`;
-        showCustomConfirm(message, confirmTitle, () => {
-            storage.products = storage.products.filter(p => p.id !== numericProductId);
-            saveStorages();
-            const storageItemElement = document.querySelector(`.xp-storage-item[data-storage-id="${numericStorageId}"]`);
+async function deleteProductFromCard(storageId, itemId, productName = "acest produs") {
+    const safeProductName = typeof productName === 'string' ? productName.replace(/'/g, "\\'").replace(/"/g, '\\"') : "acest produs";
+
+    showCustomConfirm(`Sunteti sigur ca doriti sa stergeti produsul "${safeProductName}"?`, "Confirmare Stergere Produs", async () => {
+        const token = localStorage.getItem('authToken');
+        if (!token) { 
+            showInfoModal("Sesiunea a expirat. Va rugam sa va reautentificati.", "Eroare Autentificare");
+            handleLogout(); 
+            return; 
+        }
+
+        try {
+            const response = await fetch(`http://localhost:3000/api/items/${itemId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            const data = await response.json();
+
+            if (!response.ok) {
+                if (response.status === 401 || response.status === 403) { handleLogout(); return; }
+                throw new Error(data.message || `Eroare HTTP: ${response.status}`);
+            }
+            
+            showInfoModal(data.message || `Produsul "${safeProductName}" a fost sters.`, "Stergere Reusita", "fa-trash-alt");
+            
+            const numericStorageId = typeof storageId === 'string' ? parseInt(storageId, 10) : storageId;
+            const storageItemElement = document.querySelector(`.storage-item[data-storage-id="${numericStorageId}"]`);
             if (storageItemElement) {
                 const tableBody = storageItemElement.querySelector('.product-list-in-card tbody');
                 const expandableContentElement = storageItemElement.querySelector('.storage-content-expandable');
-                if (tableBody && expandableContentElement) {
-                    renderProductsInCard(numericStorageId, tableBody);
-                     if (expandableContentElement.classList.contains('expanded')) requestAnimationFrame(() => { if(expandableContentElement.classList.contains('expanded')) expandableContentElement.style.maxHeight = expandableContentElement.scrollHeight + "px"; });
+                 if (tableBody && expandableContentElement && expandableContentElement.classList.contains('expanded')) {
+                    await renderProductsInCard(numericStorageId, tableBody); 
+                     requestAnimationFrame(() => { 
+                        if(expandableContentElement.classList.contains('expanded')) expandableContentElement.style.maxHeight = expandableContentElement.scrollHeight + "px";
+                    });
                 }
             }
-        });
-    }
+
+        } catch (error) {
+            console.error("Eroare la stergerea produsului:", error);
+            showInfoModal(`Eroare la stergerea produsului: ${error.message}`, "Eroare Retea", "fa-ethernet", "#D81E05");
+        }
+    });
 }
