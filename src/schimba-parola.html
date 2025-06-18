@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <title>Setare Parolă Nouă</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        .auth-container { width: 100%; max-width: 400px; margin: 50px auto; }
+        .xp-body { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+    </style>
+</head>
+<body class="xp-body">
+    <div class="auth-container">
+        <div class="xp-window">
+            <div class="xp-window-title-bar">
+                <span class="xp-title-text">Setează Parola Nouă</span>
+            </div>
+            <div class="xp-window-content">
+                <p>Codul a fost verificat cu succes. Acum poți seta o parolă nouă.</p>
+                <div id="final-reset-error" class="form-error-message xp-error-message" style="display:none;"></div>
+                <div id="final-reset-success" class="form-success-message" style="display:none;"></div>
+                
+                <input type="hidden" id="reset-session-token">
+                
+                <div>
+                    <label for="new-password">Parolă Nouă:</label>
+                    <input type="password" id="new-password" class="xp-input" placeholder="Minim 6 caractere">
+                </div>
+                <div>
+                    <label for="confirm-new-password">Confirmă Parola Nouă:</label>
+                    <input type="password" id="confirm-new-password" class="xp-input" placeholder="Repetă parola">
+                </div>
+                <div class="xp-button-group">
+                    <button id="perform-reset-button" class="xp-button">Schimbă Parola</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="js/auth.js"></script> 
+</body>
+</html>

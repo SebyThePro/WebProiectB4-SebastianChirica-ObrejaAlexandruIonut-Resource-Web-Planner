@@ -204,71 +204,97 @@ const server = http.createServer(async (req, res) => {
                 res.end(JSON.stringify({ message: 'Adresa de email este obligatorie.' }));
                 return;
             }
+            const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
             let connection;
             try {
                 connection = await oracledb.getConnection(dbConfig);
-                const userLookupResult = await connection.execute(
-                    `BEGIN get_user_by_identifier(:identifier, :o_user_id, :o_username, :o_email, :o_password_hash, :o_role, :o_error_message); END;`,
-                    { identifier: email, o_user_id: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER }, o_username: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 50 }, o_email: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 100 }, o_password_hash: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 255 }, o_role: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 20 }, o_error_message: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 200 } }
+                // Apeleaza procedura noua care stocheaza codul
+                await connection.execute(
+                    `BEGIN store_reset_code(:p_email, :p_reset_code, :o_error_message); END;`,
+                    { p_email: email, p_reset_code: resetCode, o_error_message: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 250 } }
                 );
-                const userId = userLookupResult.outBinds.o_user_id;
-                const userEmail = userLookupResult.outBinds.o_email;
-                const dbErrorUserLookup = userLookupResult.outBinds.o_error_message;
-
-                if (!userId || dbErrorUserLookup) {
-                    console.log(`Cerere resetare parola pentru email negasit sau eroare DB: ${email}, Eroare: ${dbErrorUserLookup}`);
-                    res.writeHead(200, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ message: 'Daca un cont cu acest email exista, instructiunile de resetare au fost trimise.' }));
-                    return;
-                }
-
-                const resetTokenPlain = crypto.randomBytes(32).toString('hex');
-                const resetTokenHash = await bcrypt.hash(resetTokenPlain, 10);
-                const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
-
-                const storeTokenResult = await connection.execute(
-                    `BEGIN store_password_reset_token(:user_id, :token_hash, :token_plain, :expires_at, :o_success, :o_error_message); END;`,
-                    { user_id: userId, token_hash: resetTokenHash, token_plain: resetTokenPlain, expires_at: expiresAt, o_success: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER }, o_error_message: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 200 } }
-                );
-                const storeSuccess = storeTokenResult.outBinds.o_success;
-                const storeErrorMessage = storeTokenResult.outBinds.o_error_message;
-
-                if (!storeSuccess || storeErrorMessage) {
-                    console.error("Eroare la stocarea token-ului de resetare in DB:", storeErrorMessage);
-                    res.writeHead(200, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ message: 'A aparut o eroare la procesarea cererii. Incercati mai tarziu.' }));
-                    return;
-                }
-
-                const resetLink = `http://127.0.0.1:5500/src/reset-password.html?token=${resetTokenPlain}`;
 
                 const mailTransport = await setupEmailTransport();
-                try {
-                    const info = await mailTransport.sendMail({
-                        from: '"Admin Proiect Consumabile" <sebychirica100@gmail.com>',
-                        to: userEmail,
-                        subject: 'Cerere Resetare Parola - Proiect Gestionare Consumabile',
-                        html: `<p>Buna ziua,</p><p>Pentru a reseta parola contului tau (${userEmail}), te rugam sa accesezi urmatorul link (valabil 15 minute):</p><p><a href="${resetLink}">${resetLink}</a></p><p>Daca nu ai solicitat aceasta modificare, te rugam sa ignori acest email.</p>`
-                    });
-                    console.log(`Email de resetare trimis catre ${userEmail}. Message ID: ${info.messageId}`);
-                } catch (emailError) {
-                    console.error(`Eroare la trimiterea email-ului de resetare catre ${userEmail}:`, emailError);
-                }
+                await mailTransport.sendMail({
+                    from: '"Admin Proiect Consumabile" <sebychirica100@gmail.com>',
+                    to: email,
+                    subject: 'Codul tau de Resetare Parola',
+                    html: `<p>Buna ziua,</p><p>Codul tau pentru resetarea parolei este: <strong>${resetCode}</strong></p><p>Acest cod este valabil pentru 15 minute.</p>`
+                });
+                console.log(`Email de resetare cu codul ${resetCode} trimis cu succes catre ${email}.`);
+                
                 res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ message: 'Daca un cont cu acest email exista, instructiunile de resetare au fost trimise.' }));
+                res.end(JSON.stringify({ message: 'Daca un cont cu acest email exista, un cod de resetare a fost trimis.' }));
             } catch (dbErr) {
-                console.error("Eroare Baza de Date la /api/forgot-password:", dbErr);
+                console.error("Eroare DB la /api/forgot-password:", dbErr);
                 res.writeHead(500, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ message: 'Eroare interna la procesarea cererii.' }));
             } finally {
-                if (connection) { try { await connection.close(); } catch (closeErr) { console.error("Eroare la inchiderea conexiunii (forgot-password):", closeErr); } }
+                if (connection) { try { await connection.close(); } catch (e) { console.error(e); } }
             }
         } catch (parseErr) {
-            console.error("Eroare la parsarea corpului cererii (forgot-password):", parseErr);
             res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ message: parseErr.message || 'Format JSON invalid.' }));
+            res.end(JSON.stringify({ message: 'Format JSON invalid.' }));
         }
     }
+     else if (req.url === '/api/reset-with-code' && req.method === 'POST') {
+    try {
+        const { email, code, newPassword } = await parseRequestBody(req);
+
+        // --- ADAUGARE PENTRU DEBUGGING ---
+        console.log(`[DEBUG] Cerere de resetare primita: Email='${email}', Cod Introdus='${code}'`);
+        // ------------------------------------
+
+        if (!email || !code || !newPassword) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ message: 'Email, cod si parola noua sunt obligatorii.' }));
+            return;
+        }
+        if (newPassword.length < 6) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ message: 'Noua parola trebuie sa aiba minim 6 caractere.' }));
+            return;
+        }
+        let connection;
+        try {
+            connection = await oracledb.getConnection(dbConfig);
+            const newHashedPassword = await bcrypt.hash(newPassword, 10);
+            
+            const result = await connection.execute(
+                `BEGIN verify_and_update_password(:p_email, :p_reset_code, :p_new_password_hash, :o_success, :o_error_message); END;`,
+                { 
+                    p_email: email, 
+                    p_reset_code: code, 
+                    p_new_password_hash: newHashedPassword, 
+                    o_success: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER }, 
+                    o_error_message: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 250 } 
+                }
+            );
+            
+            const success = result.outBinds.o_success;
+            const errorMessage = result.outBinds.o_error_message;
+
+            if (success === 1) {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ message: 'Parola a fost resetata cu succes!' }));
+            } else {
+                // Afisam in consola si eroarea din DB pentru debugging
+                console.log(`[DEBUG] Validare esuata in DB. Mesaj: ${errorMessage}`);
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ message: errorMessage || 'Cod invalid, expirat sau emailul este incorect.' }));
+            }
+        } catch (dbErr) {
+            console.error("Eroare DB la /api/reset-with-code:", dbErr);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ message: 'Eroare interna la resetarea parolei.' }));
+        } finally {
+            if (connection) { try { await connection.close(); } catch (e) { console.error(e); } }
+        }
+    } catch (parseErr) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ message: 'Format JSON invalid.' }));
+    }
+}
     else if (req.url === '/api/reset-password' && req.method === 'POST') {
         try {
             const { token, newPassword, confirmPassword } = await parseRequestBody(req);

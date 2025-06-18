@@ -1,215 +1,105 @@
-
-
 document.addEventListener('DOMContentLoaded', () => {
+    // ==== LOGICA PENTRU PAGINA login.html ====
     const loginButton = document.getElementById('login-button');
     if (loginButton) {
         loginButton.addEventListener('click', handleLogin);
-
-        const openForgotPasswordLink = document.getElementById('open-forgot-password-link');
-        if (openForgotPasswordLink) {
-            openForgotPasswordLink.addEventListener('click', (e) => {
-                e.preventDefault(); 
-                openForgotPasswordModal();
-            });
-        }
-
-        const closeForgotPasswordModalButton = document.getElementById('close-forgot-password-modal-button');
-        if (closeForgotPasswordModalButton) {
-            closeForgotPasswordModalButton.addEventListener('click', closeForgotPasswordModal);
-        }
-
-        const cancelForgotPasswordModalButton = document.getElementById('cancel-forgot-password-modal-button');
-        if (cancelForgotPasswordModalButton) {
-            cancelForgotPasswordModalButton.addEventListener('click', closeForgotPasswordModal);
-        }
-
-        const forgotPasswordButton = document.getElementById('forgot-password-button');
-        if (forgotPasswordButton) {
-             forgotPasswordButton.addEventListener('click', handleForgotPassword);
-        }
-
-        const loginIdentifierInput = document.getElementById('login-identifier');
-        const loginPasswordInput = document.getElementById('login-password');
-        if (loginIdentifierInput) {
-            loginIdentifierInput.addEventListener('keypress', function(event) {
-                if (event.key === "Enter") {
-                    event.preventDefault();
-                    handleLogin();
-                }
-            });
-        }
-        if (loginPasswordInput) {
-            loginPasswordInput.addEventListener('keypress', function(event) {
-                if (event.key === "Enter") {
-                    event.preventDefault();
-                    handleLogin();
-                }
-            });
-        }
+        // Atasam event listener pentru modalul de parola uitata
+        document.getElementById('open-forgot-password-link').addEventListener('click', (e) => {
+            e.preventDefault();
+            openForgotPasswordModal();
+        });
+        document.getElementById('close-forgot-password-modal-button').addEventListener('click', closeForgotPasswordModal);
+        document.getElementById('cancel-forgot-password-modal-button').addEventListener('click', closeForgotPasswordModal);
+        document.getElementById('forgot-password-button').addEventListener('click', handleForgotPassword);
+        
+        document.getElementById('login-identifier').addEventListener('keypress', (e) => { if (e.key === 'Enter') handleLogin(); });
+        document.getElementById('login-password').addEventListener('keypress', (e) => { if (e.key === 'Enter') handleLogin(); });
     }
 
+    // ==== LOGICA PENTRU PAGINA register.html ====
     const registerButton = document.getElementById('register-button');
     if (registerButton) {
         registerButton.addEventListener('click', handleRegister);
-
-        const registerUsernameInput = document.getElementById('register-username');
-        const registerEmailInput = document.getElementById('register-email');
-        const registerPasswordInput = document.getElementById('register-password');
-        const registerConfirmPasswordInput = document.getElementById('register-confirm-password');
-
-        const registerFields = [registerUsernameInput, registerEmailInput, registerPasswordInput, registerConfirmPasswordInput];
-        registerFields.forEach(field => {
-            if (field) {
-                field.addEventListener('keypress', function(event) {
-                    if (event.key === "Enter") {
-                        event.preventDefault();
-                        handleRegister();
-                    }
-                });
-            }
-        });
     }
-    const resetPasswordButton = document.getElementById('reset-password-button');
-    if (resetPasswordButton) {
-        extractTokenAndStore(); 
-        resetPasswordButton.addEventListener('click', handleResetPassword);
-
-        const newPasswordInput = document.getElementById('new-password');
-        const confirmNewPasswordInput = document.getElementById('confirm-new-password');
-
-        if (newPasswordInput) {
-            newPasswordInput.addEventListener('keypress', function(event) {
-                if (event.key === "Enter") {
-                    event.preventDefault();
-                    handleResetPassword();
-                }
-            });
-        }
-        if (confirmNewPasswordInput) {
-            confirmNewPasswordInput.addEventListener('keypress', function(event) {
-                if (event.key === "Enter") {
-                    event.preventDefault();
-                    handleResetPassword();
-                }
-            });
-        }
+    
+    // ==== LOGICA PENTRU PAGINA cod-resetare.html ====
+    const resetWithCodeButton = document.getElementById('reset-with-code-button');
+    if (resetWithCodeButton) {
+        resetWithCodeButton.addEventListener('click', handleResetWithCode);
     }
 });
 
-function displayAuthMessage(formType, message, isError = true) {
-    const errorDivId = formType === 'login' ? 'login-modal-error' :
-                       formType === 'register' ? 'register-modal-error' :
-                       formType === 'forgot-password' ? 'forgot-password-modal-error' :
-                       'reset-password-error'; 
-    const successDivId = formType === 'forgot-password' ? 'forgot-password-modal-success' :
-                         formType === 'reset-password' ? 'reset-password-success' : 
-                         null;
+function displayAuthMessage(containerId, message, isError = true) {
+    const messageDiv = document.getElementById(containerId);
+    if (!messageDiv) return;
 
-    const errorDiv = document.getElementById(errorDivId);
-    const successDiv = successDivId ? document.getElementById(successDivId) : null;
-
+    // Ascunde celalalt container de mesaj pentru a evita suprapunerea
+    if (containerId.includes('error')) {
+        const successId = containerId.replace('error', 'success');
+        const successDiv = document.getElementById(successId);
+        if (successDiv) successDiv.style.display = 'none';
+    } else if (containerId.includes('success')) {
+        const errorId = containerId.replace('success', 'error');
+        const errorDiv = document.getElementById(errorId);
+        if(errorDiv) errorDiv.style.display = 'none';
+    }
+    
+    messageDiv.textContent = message;
     if (isError) {
-        if (errorDiv) {
-            errorDiv.textContent = message;
-            errorDiv.style.display = 'block';
-        }
-        if (successDiv) {
-            successDiv.style.display = 'none';
-            successDiv.textContent = '';
-        }
+        messageDiv.className = 'form-error-message xp-error-message';
     } else {
-        if (successDiv) {
-            successDiv.textContent = message;
-            successDiv.style.display = 'block';
-        }
-        if (errorDiv) {
-            errorDiv.style.display = 'none';
-            errorDiv.textContent = '';
-        }
+        messageDiv.className = 'form-success-message';
+        messageDiv.style.backgroundColor = '#D4EDDA';
+        messageDiv.style.color = '#155724';
+        messageDiv.style.border = '1px solid #C3E6CB';
+        messageDiv.style.padding = '8px 10px';
+        messageDiv.style.marginBottom = '12px';
     }
+    messageDiv.style.display = 'block';
 }
 
-function clearAuthMessages(formType) {
-    const errorDivId = formType === 'login' ? 'login-modal-error' :
-                       formType === 'register' ? 'register-modal-error' :
-                       formType === 'forgot-password' ? 'forgot-password-modal-error' :
-                       'reset-password-error'; 
-    const successDivId = formType === 'forgot-password' ? 'forgot-password-modal-success' :
-                         formType === 'reset-password' ? 'reset-password-success' : 
-                         null;
-
-    const errorDiv = document.getElementById(errorDivId);
-    const successDiv = successDivId ? document.getElementById(successDivId) : null;
-
-    if (errorDiv) {
-        errorDiv.textContent = '';
-        errorDiv.style.display = 'none';
-    }
-    if (successDiv) {
-        successDiv.textContent = '';
-        successDiv.style.display = 'none';
-    }
-}
 async function handleLogin() {
-    clearAuthMessages('login');
     const identifierInput = document.getElementById('login-identifier');
     const passwordInput = document.getElementById('login-password');
-
-    if (!identifierInput || !passwordInput) {
-        console.error("Elementele formularului de login nu au fost gasite!");
-        return;
-    }
-
+    const errorDiv = document.getElementById('login-modal-error');
+    
+    errorDiv.style.display = 'none';
     const identifier = identifierInput.value.trim();
     const password = passwordInput.value.trim();
 
     if (!identifier || !password) {
-        displayAuthMessage('login', 'Email/Username si parola sunt obligatorii.');
+        displayAuthMessage('login-modal-error', 'Email/Username si parola sunt obligatorii.');
         return;
     }
 
     try {
         const response = await fetch('http://localhost:3000/api/login', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ identifier, password })
         });
-
         const data = await response.json();
-
         if (response.ok) {
-            console.log('Login reusit:', data);
-            if (data.token) {
-                localStorage.setItem('authToken', data.token);
-                if (data.user && data.user.username) {
-                    localStorage.setItem('loggedInUser', data.user.username);
-                }
-                window.location.href = 'index.html';
-            } else {
-                displayAuthMessage('login', data.message || 'Token de autentificare lipsa in raspuns.');
-            }
+            localStorage.setItem('authToken', data.token);
+            localStorage.setItem('loggedInUser', data.user.username);
+            window.location.href = 'index.html';
         } else {
-            displayAuthMessage('login', data.message || 'A aparut o eroare la autentificare.');
+            displayAuthMessage('login-modal-error', data.message || 'A aparut o eroare.');
         }
     } catch (error) {
         console.error('Eroare la requestul de login:', error);
-        displayAuthMessage('login', 'Nu s-a putut conecta la server. Incercati mai tarziu.');
+        displayAuthMessage('login-modal-error', 'Nu s-a putut conecta la server.');
     }
 }
 
 async function handleRegister() {
-    clearAuthMessages('register');
     const usernameInput = document.getElementById('register-username');
     const emailInput = document.getElementById('register-email');
     const passwordInput = document.getElementById('register-password');
     const confirmPasswordInput = document.getElementById('register-confirm-password');
+    const errorDiv = document.getElementById('register-modal-error');
 
-    if (!usernameInput || !emailInput || !passwordInput || !confirmPasswordInput) {
-        console.error("Elementele formularului de inregistrare nu au fost gasite!");
-        return;
-    }
+    errorDiv.style.display = 'none';
 
     const username = usernameInput.value.trim();
     const email = emailInput.value.trim();
@@ -217,56 +107,48 @@ async function handleRegister() {
     const confirmPassword = confirmPasswordInput.value.trim();
 
     if (!username || !email || !password || !confirmPassword) {
-        displayAuthMessage('register', 'Toate campurile sunt obligatorii.');
+        displayAuthMessage('register-modal-error', 'Toate campurile sunt obligatorii.');
         return;
     }
-
     if (password !== confirmPassword) {
-        displayAuthMessage('register', 'Parolele nu se potrivesc.');
+        displayAuthMessage('register-modal-error', 'Parolele nu se potrivesc.');
         return;
     }
-
     if (password.length < 6) {
-        displayAuthMessage('register', 'Parola trebuie sa aiba minim 6 caractere.');
+        displayAuthMessage('register-modal-error', 'Parola trebuie sa aiba minim 6 caractere.');
         return;
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-        displayAuthMessage('register', 'Formatul adresei de email este invalid.');
+        displayAuthMessage('register-modal-error', 'Formatul adresei de email este invalid.');
         return;
     }
 
     try {
         const response = await fetch('http://localhost:3000/api/register', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, email, password })
         });
-
         const data = await response.json();
-
         if (response.status === 201) {
-            console.log('Inregistrare reusita:', data);
             alert('Inregistrare reusita! Va puteti autentifica acum.');
             window.location.href = 'login.html';
         } else {
-            displayAuthMessage('register', data.message || 'A aparut o eroare la inregistrare.');
+            displayAuthMessage('register-modal-error', data.message || 'A aparut o eroare la inregistrare.');
         }
     } catch (error) {
         console.error('Eroare la requestul de inregistrare:', error);
-        displayAuthMessage('register', 'Nu s-a putut conecta la server. Incercati mai tarziu.');
+        displayAuthMessage('register-modal-error', 'Nu s-a putut conecta la server.');
     }
 }
-
 
 function openForgotPasswordModal() {
     const modal = document.getElementById('forgot-password-modal');
     if (modal) {
-        clearAuthMessages('forgot-password');
-        const emailInput = document.getElementById('forgot-password-email');
-        if(emailInput) emailInput.value = '';
+        modal.querySelector('#forgot-password-modal-error').style.display = 'none';
+        modal.querySelector('#forgot-password-modal-success').style.display = 'none';
+        modal.querySelector('#forgot-password-email').value = '';
         modal.style.display = 'flex';
     }
 }
@@ -279,29 +161,13 @@ function closeForgotPasswordModal() {
 }
 
 async function handleForgotPassword() {
-    clearAuthMessages('forgot-password');
     const emailInput = document.getElementById('forgot-password-email');
-    const forgotPasswordButton = document.getElementById('forgot-password-button');
-
-    if (!emailInput) {
-        console.error("Elementul de email pentru uitare parola nu a fost gasit!");
-        return;
-    }
     const email = emailInput.value.trim();
-
     if (!email) {
-        displayAuthMessage('forgot-password', 'Adresa de email este obligatorie.');
+        displayAuthMessage('forgot-password-modal-error', 'Adresa de email este obligatorie.');
         return;
     }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-        displayAuthMessage('forgot-password', 'Formatul adresei de email este invalid.');
-        return;
-    }
-
-    if (forgotPasswordButton) forgotPasswordButton.disabled = true; 
-
+    
     try {
         const response = await fetch('http://localhost:3000/api/forgot-password', {
             method: 'POST',
@@ -309,128 +175,61 @@ async function handleForgotPassword() {
             body: JSON.stringify({ email })
         });
         const data = await response.json();
+        if (!response.ok) { throw new Error(data.message || 'A aparut o eroare.'); }
 
-        if (data.message) {
-            displayAuthMessage('forgot-password', data.message, false); 
-            emailInput.value = ''; 
-        } else {
-  
-            displayAuthMessage('forgot-password', 'Cererea a fost procesata. Verificati email-ul.', false);
-        }
+        localStorage.setItem('resetEmail', email);
+        window.location.href = 'cod-resetare.html';
 
     } catch (error) {
-        console.error('Eroare la cererea de resetare parola:', error);
-        displayAuthMessage('forgot-password', 'Eroare de comunicare cu serverul. Incercati mai tarziu.');
-    } finally {
-        if (forgotPasswordButton) forgotPasswordButton.disabled = false; 
+        displayAuthMessage('forgot-password-modal-error', error.message);
     }
 }
-function extractTokenAndStore() {
-    console.log("Functia extractTokenAndStore a fost apelata."); 
 
-    const urlParams = new URLSearchParams(window.location.search);
-    console.log("URLSearchParams extras:", window.location.search); 
-
-    const token = urlParams.get('token');
-    console.log("Token extras din URL (urlParams.get('token')):", token); 
-
-    const hiddenTokenInput = document.getElementById('reset-token');
-    if (hiddenTokenInput) {
-        console.log("Elementul #reset-token (hidden input) a fost gasit in DOM.");
-    } else {
-        console.error("EROARE CRITICA: Elementul #reset-token (hidden input) NU a fost gasit in DOM!"); 
-    }
-
-
-    if (token && hiddenTokenInput) {
-        hiddenTokenInput.value = token;
-        console.log("Token-ul a fost gasit si stocat in campul hidden. Valoare:", hiddenTokenInput.value); 
-        clearAuthMessages('reset-password'); 
-        const resetButton = document.getElementById('reset-password-button');
-        if (resetButton) resetButton.disabled = false;
-        const newPassInput = document.getElementById('new-password');
-        if (newPassInput) newPassInput.disabled = false;
-        const confirmNewPassInput = document.getElementById('confirm-new-password');
-        if (confirmNewPassInput) confirmNewPassInput.disabled = false;
-
-    } else { 
-        if (!token) {
-            console.error("Motiv eroare: Token-ul NU a fost gasit in URL (este null sau undefined).");
-        }
-        if (!hiddenTokenInput) {
-            console.error("Motiv eroare: Elementul #reset-token (hidden input) NU a fost gasit.");
-        }
-        displayAuthMessage('reset-password', 'Token de resetare invalid sau negasit. Va rugam solicitati un nou link.');
-        const resetButton = document.getElementById('reset-password-button');
-        if (resetButton) resetButton.disabled = true;
-        const newPassInput = document.getElementById('new-password');
-        if (newPassInput) newPassInput.disabled = true;
-        const confirmNewPassInput = document.getElementById('confirm-new-password');
-        if (confirmNewPassInput) confirmNewPassInput.disabled = true;
-    }
-}
-async function handleResetPassword() {
-    clearAuthMessages('reset-password'); 
+async function handleResetWithCode() {
+    const email = localStorage.getItem('resetEmail');
+    const codeInput = document.getElementById('reset-code-input');
     const newPasswordInput = document.getElementById('new-password');
-    const confirmNewPasswordInput = document.getElementById('confirm-new-password');
-    const tokenInput = document.getElementById('reset-token'); 
-
-    if (!newPasswordInput || !confirmNewPasswordInput || !tokenInput) {
-        console.error("Elemente ale formularului de resetare parola lipsesc!");
-        displayAuthMessage('reset-password', 'Eroare interna a formularului.');
+    const confirmPasswordInput = document.getElementById('confirm-new-password');
+    
+    if (!email) {
+        displayAuthMessage('reset-error', 'Eroare: Emailul pentru resetare nu a fost găsit. Vă rugăm reluați procesul.');
         return;
     }
 
+    const code = codeInput.value.trim();
     const newPassword = newPasswordInput.value;
-    const confirmPassword = confirmNewPasswordInput.value;
-    const token = tokenInput.value;
+    const confirmPassword = confirmPasswordInput.value;
 
-    if (!token) {
-        displayAuthMessage('reset-password', 'Token de resetare invalid sau lipsa. Incercati sa solicitati un nou link.');
-        return;
-    }
-    if (!newPassword || !confirmPassword) {
-        displayAuthMessage('reset-password', 'Ambele campuri pentru parola sunt obligatorii.');
+    if (!code || !newPassword || !confirmPassword) {
+        displayAuthMessage('reset-error', 'Toate câmpurile sunt obligatorii.');
         return;
     }
     if (newPassword !== confirmPassword) {
-        displayAuthMessage('reset-password', 'Parolele introduse nu se potrivesc.');
+        displayAuthMessage('reset-error', 'Parolele nu se potrivesc.');
         return;
     }
     if (newPassword.length < 6) {
-        displayAuthMessage('reset-password', 'Noua parola trebuie sa aiba minim 6 caractere.');
+        displayAuthMessage('reset-error', 'Parola nouă trebuie să aibă minim 6 caractere.');
         return;
     }
-
-    const resetButton = document.getElementById('reset-password-button');
-    if (resetButton) resetButton.disabled = true;
-
+    
     try {
-        const response = await fetch('http://localhost:3000/api/reset-password', {
+        const response = await fetch('http://localhost:3000/api/reset-with-code', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ token, newPassword, confirmPassword }) 
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, code, newPassword })
         });
-
         const data = await response.json();
 
-        if (response.ok) { 
-            displayAuthMessage('reset-password', data.message || 'Parola a fost resetata cu succes! Va puteti autentifica acum.', false);
-            if (newPasswordInput) newPasswordInput.disabled = true;
-            if (confirmNewPasswordInput) confirmNewPasswordInput.disabled = true;
-            if (resetButton) resetButton.textContent = "Parola Resetata";
-            setTimeout(() => {
-                window.location.href = 'login.html';
-            }, 3000); 
+        if (response.ok) {
+            localStorage.removeItem('resetEmail');
+            displayAuthMessage('reset-success', data.message + ' Vei fi redirecționat...', false);
+            setTimeout(() => { window.location.href = 'login.html'; }, 3000);
         } else {
-            displayAuthMessage('reset-password', data.message || 'A aparut o eroare la resetarea parolei.');
-            if (resetButton) resetButton.disabled = false; 
+            displayAuthMessage('reset-error', data.message);
         }
     } catch (error) {
-        console.error('Eroare la requestul de resetare parola:', error);
-        displayAuthMessage('reset-password', 'Nu s-a putut conecta la server. Incercati mai tarziu.');
-        if (resetButton) resetButton.disabled = false;
+        console.error('Eroare la resetarea cu cod:', error);
+        displayAuthMessage('reset-error', 'Eroare de conexiune cu serverul.');
     }
 }

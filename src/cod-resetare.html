@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <title>Resetare Parola</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        .auth-container { width: 100%; max-width: 400px; margin: 50px auto; }
+        .xp-body { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+    </style>
+</head>
+<body class="xp-body">
+    <div class="auth-container">
+        <div class="xp-window">
+            <div class="xp-window-title-bar">
+                <span class="xp-title-text">Resetare Parolă</span>
+            </div>
+            <div class="xp-window-content">
+                <p>Un cod de verificare a fost trimis pe adresa ta de email. Introdu codul și setează o parolă nouă.</p>
+                <div id="reset-error" class="form-error-message xp-error-message" style="display:none;"></div>
+                <div id="reset-success" class="form-success-message" style="display:none; background-color: #D4EDDA; color: #155724; border: 1px solid #C3E6CB; padding: 8px 10px; margin-bottom: 12px; border-radius: 2px;"></div>
+                
+                <div>
+                    <label for="reset-code-input">Cod de Resetare:</label>
+                    <input type="text" id="reset-code-input" class="xp-input" placeholder="Introdu codul din 6 cifre" maxlength="6">
+                </div>
+                <div>
+                    <label for="new-password">Parolă Nouă:</label>
+                    <input type="password" id="new-password" class="xp-input" placeholder="Minim 6 caractere">
+                </div>
+                <div>
+                    <label for="confirm-new-password">Confirmă Parola Nouă:</label>
+                    <input type="password" id="confirm-new-password" class="xp-input" placeholder="Repetă parola">
+                </div>
+                <div class="xp-button-group">
+                    <button id="reset-with-code-button" class="xp-button">Resetează Parola</button>
+                </div>
+
+                 <div style="text-align: center; margin-top: 15px; font-size: 0.9em;">
+                    <a href="login.html">Înapoi la Autentificare</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="js/auth.js"></script>
+</body>
+</html>
