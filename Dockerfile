@@ -17,8 +17,6 @@ COPY . .
 # Pasul 6: Setam calea catre driverele Oracle din interiorul containerului
 ENV LD_LIBRARY_PATH=/usr/src/app/back-end/instantclient
 
-# Pasul 7: Expunem portul aplicatiei
 EXPOSE 3000
 
-# Pasul 8: Comanda finala care porneste serverul
 CMD [ "node", "back-end/server.js" ]
