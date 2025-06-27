@@ -572,14 +572,14 @@ function saveStorages() {
 }
 
 async function loadStorages() {
-      const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('authToken');
     if (!token) {
         console.log("Nu se pot incarca depozitele, utilizatorul nu este autentificat.");
         return;
     }
 
     try {
-        const response = await fetch('API_BASE_URL/api/storages', {
+        const response = await fetch('http://localhost:3000/api/storages', {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`
@@ -587,13 +587,9 @@ async function loadStorages() {
         });
 
         if (!response.ok) {
-            if (response.status === 401 || response.status === 403) {
-                console.error('Token invalid sau expirat. Se redirectioneaza la login.');
-                handleLogout();
-                return;
-            }
-            const errorData = await response.json();
-            throw new Error(errorData.message || `Eroare HTTP: ${response.status}`);
+            const errorText = await response.text();
+            console.error("Eroare de la server la incarcarea depozitelor:", errorText);
+            throw new Error(errorText || `Eroare HTTP: ${response.status}`);
         }
 
         const data = await response.json();
@@ -606,6 +602,7 @@ async function loadStorages() {
         }));
         console.log("Depozite incarcate de la API:", storages);
         renderStorages();
+
     } catch (error) {
         console.error("Eroare la incarcarea depozitelor de la API:", error);
         showInfoModal(`Eroare la incarcarea depozitelor: ${error.message}`, "Eroare Retea", "fa-ethernet", "#D81E05");
