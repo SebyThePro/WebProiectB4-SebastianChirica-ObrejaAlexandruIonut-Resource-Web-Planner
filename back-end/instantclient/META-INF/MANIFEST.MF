@@ -1,0 +1,117 @@
+Manifest-Version: 1.0
+Created-By: 11.0.25 (Oracle Corporation)
+
+Name: instantclient_21_18/libclntsh.so
+SHA-256-Digest: uCIHTP/S/q8ljYJ4EaLKW24gEK95NzOrtOO274xFVvQ=
+
+Name: instantclient_21_18/libocci.so.21.1
+SHA-256-Digest: 14X85l17ARzTcfexrN/1zCTmdI0fP2e/CDajgBS/nAo=
+
+Name: instantclient_21_18/BASIC_LITE_LICENSE
+SHA-256-Digest: P5PQQaT4aoIGl6b8op6FmzevqaejGJf3k7vZInYFncE=
+
+Name: instantclient_21_18/libocci.so.20.1
+SHA-256-Digest: aCJLIRQGFENehD8GcHDyn2qaI27+NX/WWJSmQwGHzhE=
+
+Name: instantclient_21_18/libclntshcore.so.18.1
+SHA-256-Digest: 6okNH8Ice+7x62Ludt2CUQnwiKMdtp5BGj5ntZXCXII=
+
+Name: instantclient_21_18/ucp.jar
+SHA-256-Digest: gTqM9g7QhXmuTOKOBT8UNXSSCIXcvBP1Ndh8XZ7QECs=
+
+Name: instantclient_21_18/xstreams.jar
+SHA-256-Digest: xz5lGEzS54R3DZDtTzKzPfryjWRs7K0HNwhLQ+sL1iM=
+
+Name: instantclient_21_18/libclntshcore.so
+SHA-256-Digest: 6okNH8Ice+7x62Ludt2CUQnwiKMdtp5BGj5ntZXCXII=
+
+Name: instantclient_21_18/libclntshcore.so.12.1
+SHA-256-Digest: 6okNH8Ice+7x62Ludt2CUQnwiKMdtp5BGj5ntZXCXII=
+
+Name: instantclient_21_18/libclntshcore.so.20.1
+SHA-256-Digest: 6okNH8Ice+7x62Ludt2CUQnwiKMdtp5BGj5ntZXCXII=
+
+Name: instantclient_21_18/libclntshcore.so.21.1
+SHA-256-Digest: /iCrd6yTugVNkdjZ4VUr/ZATaRCkgLBV4at8ASPvZog=
+
+Name: instantclient_21_18/libclntsh.so.19.1
+SHA-256-Digest: uCIHTP/S/q8ljYJ4EaLKW24gEK95NzOrtOO274xFVvQ=
+
+Name: instantclient_21_18/libclntsh.so.18.1
+SHA-256-Digest: uCIHTP/S/q8ljYJ4EaLKW24gEK95NzOrtOO274xFVvQ=
+
+Name: instantclient_21_18/libocci_gcc53.so
+SHA-256-Digest: ykHKbRXl+PSpiHO8H5TvjEAUKxSjUDMeR0JvD/lrSwg=
+
+Name: instantclient_21_18/libclntsh.so.12.1
+SHA-256-Digest: uCIHTP/S/q8ljYJ4EaLKW24gEK95NzOrtOO274xFVvQ=
+
+Name: instantclient_21_18/network/admin/README
+SHA-256-Digest: 6/rc95VQpXtaiUJ7dgUQASUmSVQD+6H8rJa5ISLhD+o=
+
+Name: instantclient_21_18/libclntsh.so.10.1
+SHA-256-Digest: uCIHTP/S/q8ljYJ4EaLKW24gEK95NzOrtOO274xFVvQ=
+
+Name: instantclient_21_18/libclntsh.so.11.1
+SHA-256-Digest: uCIHTP/S/q8ljYJ4EaLKW24gEK95NzOrtOO274xFVvQ=
+
+Name: instantclient_21_18/libocci.so.11.1
+SHA-256-Digest: aCJLIRQGFENehD8GcHDyn2qaI27+NX/WWJSmQwGHzhE=
+
+Name: instantclient_21_18/libocci.so.10.1
+SHA-256-Digest: aCJLIRQGFENehD8GcHDyn2qaI27+NX/WWJSmQwGHzhE=
+
+Name: instantclient_21_18/libnnz21.so
+SHA-256-Digest: oBOBb5vYE0WS8dCxwkUZLY9Q7MsyahNfwPyVAh+bvgE=
+
+Name: instantclient_21_18/libocci.so.12.1
+SHA-256-Digest: aCJLIRQGFENehD8GcHDyn2qaI27+NX/WWJSmQwGHzhE=
+
+Name: instantclient_21_18/genezi
+SHA-256-Digest: Q5Y2pp90VLMOqYPzG+M8G/Fp9WVO8Aac29VNDluHhLE=
+
+Name: instantclient_21_18/libociicus.so
+SHA-256-Digest: UDpR5EYJG+V9577F8/h4Hz9VRfvDGEjT/tCFft+2VTg=
+
+Name: instantclient_21_18/libocci_gcc53.so.21.1
+SHA-256-Digest: /dwpO4iHxH/2lsCGwU2tDKI2mMsBlJIBRIex6UcGkdo=
+
+Name: instantclient_21_18/ojdbc8.jar
+SHA-256-Digest: mTw8ttCQxCqWw5wKknWf3Cj43EKvYNZYLIZS9aPBbE4=
+
+Name: instantclient_21_18/ojdbc11.jar
+SHA-256-Digest: 89va9TeM30ecFFx44v2T6vW9YcwdLj7zDaXhaOSwc6g=
+
+Name: instantclient_21_18/adrci
+SHA-256-Digest: Ys1LYQknZJYRx4mQu7D2XGtMD19P5iEbKuJgUq2IFXM=
+
+Name: instantclient_21_18/BASIC_LITE_README
+SHA-256-Digest: /puiNKc6rQMqZc08eVcByARTc2plwlZ+pOeMXMg/LhU=
+
+Name: instantclient_21_18/libclntsh.so.20.1
+SHA-256-Digest: uCIHTP/S/q8ljYJ4EaLKW24gEK95NzOrtOO274xFVvQ=
+
+Name: instantclient_21_18/libocci.so
+SHA-256-Digest: aCJLIRQGFENehD8GcHDyn2qaI27+NX/WWJSmQwGHzhE=
+
+Name: instantclient_21_18/libocci.so.19.1
+SHA-256-Digest: aCJLIRQGFENehD8GcHDyn2qaI27+NX/WWJSmQwGHzhE=
+
+Name: instantclient_21_18/libocci.so.18.1
+SHA-256-Digest: aCJLIRQGFENehD8GcHDyn2qaI27+NX/WWJSmQwGHzhE=
+
+Name: instantclient_21_18/libclntshcore.so.19.1
+SHA-256-Digest: 6okNH8Ice+7x62Ludt2CUQnwiKMdtp5BGj5ntZXCXII=
+
+Name: instantclient_21_18/liboramysql.so
+SHA-256-Digest: xEVo8umOGxnLWLwdsAxQzmVLS3M0f5JuftUDMTpRIgo=
+
+Name: instantclient_21_18/uidrvci
+SHA-256-Digest: 8ZrS9FQamLYgHyKXy/N6l9omz6NuI+JX//IrKj8R9YQ=
+
+Name: instantclient_21_18/libclntsh.so.21.1
+SHA-256-Digest: l18gbG2OEJI9EBxbVaTUKsIZOA0HOrc71wljp8gGhgk=
+
+Name: instantclient_21_18/libocijdbc21.so
+SHA-256-Digest: 94GkeW7Aes2NjsR6oj3fnl94ZuYH2EALAOFKSJPwr7A=
+

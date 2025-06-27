@@ -1,0 +1,3 @@
+SELECT object_name, status
+FROM user_objects
+WHERE object_name IN ('CREATE_NOTIFICATION', 'GET_USER_NOTIFICATIONS', 'DELETE_NOTIFICATION');

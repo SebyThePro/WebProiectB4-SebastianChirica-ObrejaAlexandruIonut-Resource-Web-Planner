@@ -1,0 +1,51 @@
+BEGIN
+  EXECUTE IMMEDIATE 'DROP TRIGGER trg_items_before_insert';
+EXCEPTION WHEN OTHERS THEN IF SQLCODE != -4080 THEN RAISE; END IF;
+END;
+/
+
+BEGIN
+  EXECUTE IMMEDIATE 'DROP TABLE items CASCADE CONSTRAINTS';
+EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF;
+END;
+/
+
+BEGIN
+  EXECUTE IMMEDIATE 'DROP SEQUENCE items_seq';
+EXCEPTION WHEN OTHERS THEN IF SQLCODE != -2289 THEN RAISE; END IF;
+END;
+/
+
+
+CREATE TABLE items (
+    item_id NUMBER PRIMARY KEY,
+    user_id NUMBER NOT NULL,
+    storage_id NUMBER NOT NULL,
+    category_id NUMBER,
+    name VARCHAR2(100) NOT NULL,
+    description VARCHAR2(500),
+    quantity NUMBER NOT NULL,
+    unit_of_measure VARCHAR2(20) NOT NULL,
+    low_stock_threshold NUMBER,
+    expiry_date DATE,
+    check_date DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_item_user_v2 FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    CONSTRAINT fk_item_storage_v2 FOREIGN KEY (storage_id) REFERENCES storages(storage_id) ON DELETE CASCADE,
+    CONSTRAINT fk_item_category_v2 FOREIGN KEY (category_id) REFERENCES categories(category_id) ON DELETE SET NULL
+);
+
+
+CREATE SEQUENCE items_seq START WITH 1 INCREMENT BY 1 NOCACHE NOCYCLE;
+/
+
+CREATE OR REPLACE TRIGGER trg_items_before_insert
+BEFORE INSERT ON items
+FOR EACH ROW
+BEGIN
+    IF :NEW.item_id IS NULL THEN
+        SELECT items_seq.NEXTVAL INTO :NEW.item_id FROM dual;
+    END IF;
+END;
+/

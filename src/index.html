@@ -11,12 +11,17 @@
 </head>
 <body class="xp-body">
 
-    <div class="header-container" style="position: relative; height: 50px; margin-bottom: 10px;">
-        <h1 class="xp-main-title" style="position: absolute; left: 50%; transform: translateX(-50%); margin-top:0; margin-bottom:0; top: 50%; transform: translate(-50%, -50%);">Gestionare Depozite si Produse</h1>
-        <button id="logout-button" class="xp-button" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%);">Deconectare</button>
-    </div>
-    <div id="user-greeting" style="text-align: center; margin-bottom: 15px; font-weight: bold; display: none;">
-        </div>
+<div class="header-container" style="position: relative; height: 50px; margin-bottom: 10px;">
+    <h1 class="xp-main-title" style="position: absolute; left: 50%; transform: translateX(-50%); top: 50%; transform: translate(-50%, -50%); margin: 0;">Gestionare Depozite si Produse</h1>
+    
+    <div class="header-buttons-wrapper">
+    <button id="logout-button" class="xp-button header-action-button">DEC</button>
+    <a href="import-export.html" class="xp-button header-action-button" title="Import / Export">IMPORT/EXP</a>
+    <button id="open-notifications-panel-button" class="xp-button header-action-button" title="Notificari">NOT</button>
+    <button id="open-stats-button" class="xp-button header-action-button" title="Statistici">STATS</button>
+</div>
+</div>
+</div>
 
     <section id="storages-section" class="xp-panel">
         <div class="xp-panel-title-bar">
@@ -145,6 +150,115 @@
         </div>
     </div>
 
+    <div id="item-modal" class="modal-overlay" style="display:none;">
+        <div class="xp-window">
+            <div class="xp-window-title-bar">
+                <span id="item-modal-title" class="xp-title-text">Editare Produs</span>
+                <div class="xp-window-controls">
+                    <button class="xp-window-control-button close-button" onclick="closeItemModal()" title="Inchide"><span>&times;</span></button>
+                </div>
+            </div>
+            <div class="xp-window-content">
+                <div id="item-modal-error" class="form-error-message xp-error-message" style="display:none;"></div>
+                
+                <label for="item-name-modal">Nume produs:</label>
+                <input type="text" id="item-name-modal" class="xp-input">
+                
+                <label for="item-quantity-modal">Cantitate:</label>
+                <input type="number" id="item-quantity-modal" class="xp-input">
+                
+                <label for="item-unit-modal">Unitate:</label>
+                <select id="item-unit-modal" class="xp-select">
+                    <option value="kg">kg</option>
+                    <option value="litri">litri</option>
+                    <option value="buc">buc</option>
+                    <option value="metri">metri</option>
+                </select>
+
+                <div class="xp-button-group">
+                    <button onclick="handleUpdateItem()" id="save-item-button" class="xp-button">Salveaza Modificari</button>
+                    <button onclick="closeItemModal()" class="xp-button cancel-button">Anuleaza</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="new-notification-modal" class="modal-overlay" style="display:none;">
+    <div class="xp-window">
+        <div class="xp-window-title-bar">
+            <span class="xp-title-text">Seteaza o Notificare Noua</span>
+            <div class="xp-window-controls">
+                <button class="xp-window-control-button close-button" onclick="closeNewNotificationModal()" title="Inchide"><span>&times;</span></button>
+            </div>
+        </div>
+        <div class="xp-window-content">
+            <div id="new-notification-modal-error" class="form-error-message xp-error-message" style="display:none;"></div>
+            
+            <label for="notification-item-select">Alege un produs:</label>
+            <select id="notification-item-select" class="xp-select">
+                <option value="">Se incarca produsele...</option>
+            </select>
+
+            <label for="notification-type-select">Tip Notificare:</label>
+            <select id="notification-type-select" class="xp-select">
+                <option value="LOW_STOCK">Alerta Stoc Minim</option>
+                <option value="SCHEDULED_UPDATE">Raport Zilnic Programat</option>
+            </select>
+
+            <div id="low-stock-fields">
+                <label for="notification-threshold-input">Prag Stoc Minim:</label>
+                <input type="number" id="notification-threshold-input" class="xp-input" placeholder="Ex: 5">
+            </div>
+            <div id="scheduled-fields" style="display:none;">
+                <label for="notification-time-input">Ora Trimiterii (HH:MM):</label>
+                <input type="time" id="notification-time-input" class="xp-input">
+            </div>
+
+            <fieldset class="xp-group-box" style="padding: 10px; margin-top: 15px;">
+                <legend class="xp-group-box-title" style="top: -0.8em;">Metode de Livrare</legend>
+                <label style="display: flex; align-items: center; margin-top: 0;">
+                    <input type="checkbox" id="notify-on-site-checkbox" checked>
+                    Notificare pe site
+                </label>
+                <label style="display: flex; align-items: center;">
+                    <input type="checkbox" id="notify-by-email-checkbox">
+                    Notificare pe Email
+                </label>
+            </fieldset>
+
+            <div class="xp-button-group">
+                <button onclick="handleSaveNotification()" class="xp-button">Salveaza Notificare</button>
+                <button onclick="closeNewNotificationModal()" class="xp-button cancel-button">Anuleaza</button>
+            </div>
+        </div>
+    </div>
+</div>
+<div id="notifications-panel" class="notifications-panel">
+    <div class="notifications-panel-header">
+        <h3>Notificari</h3>
+        <button id="close-notifications-panel-button" class="close-panel-button">&times;</button>
+    </div>
+    <div class="notifications-panel-content">
+        <div class="notifications-panel-actions">
+            <button id="add-new-notification-button" class="xp-button add-button">Seteaza Notificare Noua +</button>
+        </div>
+        <div id="notifications-list">
+            <p class="xp-empty-message">Nu ai nicio notificare setata.</p>
+        </div>
+    </div>
+</div>
+<div id="statistics-modal" class="modal-overlay" style="display:none;">
+    <div class="xp-window" style="max-width: 700px; min-width: 500px;">
+        <div class="xp-window-title-bar">
+            <span class="xp-title-text">Statistici Generale</span>
+            <div class="xp-window-controls">
+                <button class="xp-window-control-button close-button" onclick="closeStatisticsModal()" title="Inchide"><span>&times;</span></button>
+            </div>
+        </div>
+        <div id="statistics-modal-content" class="xp-window-content">
+            <p>Se incarca statisticile...</p>
+        </div>
+    </div>
+</div>
     <script src="js/script.js"></script>
 </body>
 </html>

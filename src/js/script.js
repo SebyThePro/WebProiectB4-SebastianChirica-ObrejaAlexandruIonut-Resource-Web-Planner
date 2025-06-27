@@ -3,6 +3,7 @@ let storages = [];
 let editingStorageId = null;
 let confirmOkCallback = null;
 let activeOptionsMenu = null;
+let editingItemId = null;
 
 let gradientPresets = [];
 const defaultGradientPreset = {
@@ -31,9 +32,28 @@ document.addEventListener('DOMContentLoaded', () => {
     if (logoutButton) {
         logoutButton.addEventListener('click', handleLogout);
     }
-
+    
     if (localStorage.getItem('authToken')) {
         initializeMainPageFunctionality();
+    }
+    
+    const openNotificationsButton = document.getElementById('open-notifications-panel-button');
+    if (openNotificationsButton) {
+        openNotificationsButton.addEventListener('click', toggleNotificationsPanel);
+    }
+    const closeNotificationsButton = document.getElementById('close-notifications-panel-button');
+    if (closeNotificationsButton) {
+        closeNotificationsButton.addEventListener('click', toggleNotificationsPanel);
+    }
+
+    const addNewNotificationButton = document.getElementById('add-new-notification-button');
+    if (addNewNotificationButton) {
+        addNewNotificationButton.addEventListener('click', openNewNotificationModal);
+    }
+
+    const notificationTypeSelect = document.getElementById('notification-type-select');
+    if (notificationTypeSelect) {
+        notificationTypeSelect.addEventListener('change', handleNotificationTypeChange);
     }
 });
 
@@ -42,9 +62,12 @@ function initializeMainPageFunctionality() {
 
     loadStorages();
     renderColorPicker();
-    renderStorages();
+    loadGradientPresetsFromStorage();
+    populatePresetsSelect();
+    applyCurrentGradient();
 
     document.addEventListener('click', handleGlobalClick);
+    
 
     openGradientSettingsButton = document.getElementById('open-gradient-settings-button');
     gradientSettingsPanel = document.getElementById('gradient-settings-panel');
@@ -61,47 +84,33 @@ function initializeMainPageFunctionality() {
       gradientPanelErrorDiv = gradientSettingsPanel.querySelector('.gradient-panel-error.xp-error-message');
     }
 
-    if (openGradientSettingsButton && gradientSettingsPanel) {
-        openGradientSettingsButton.addEventListener('click', (event) => {
-            event.stopPropagation();
-            gradientSettingsPanel.style.display = 'block';
-            const activePreset = gradientPresets.find(p => p.name === currentlyAppliedPresetName) ||
-                                 {...defaultGradientPreset, name: defaultGradientPreset.name};
-            populatePanelInputs(activePreset);
-            if (gradientPanelErrorDiv) gradientPanelErrorDiv.style.display = 'none';
-        });
-    }
-    if (closeGradientSettingsButton && gradientSettingsPanel) {
-        closeGradientSettingsButton.addEventListener('click', () => {
-            gradientSettingsPanel.style.display = 'none';
-        });
-    }
-
-    const infoModal = document.getElementById('custom-info-modal');
-    const infoOkButton = document.getElementById('custom-info-ok');
-    const infoCloseButton = document.getElementById('custom-info-close-button');
-
-    if (infoModal && infoOkButton) {
-        infoOkButton.addEventListener('click', () => infoModal.style.display = 'none');
-    }
-    if (infoModal && infoCloseButton) {
-        infoCloseButton.addEventListener('click', () => infoModal.style.display = 'none');
-    }
-
-    loadGradientPresetsFromStorage();
-    populatePresetsSelect();
-    applyCurrentGradient();
-
+    if (openGradientSettingsButton) openGradientSettingsButton.addEventListener('click', (e) => { e.stopPropagation(); gradientSettingsPanel.style.display = 'block'; });
+    if (closeGradientSettingsButton) closeGradientSettingsButton.addEventListener('click', () => gradientSettingsPanel.style.display = 'none');
     if (saveGradientPresetButton) saveGradientPresetButton.addEventListener('click', handleSaveGradientPreset);
     if (loadGradientPresetButton) loadGradientPresetButton.addEventListener('click', handleLoadGradientPreset);
     if (deleteGradientPresetButton) deleteGradientPresetButton.addEventListener('click', handleDeleteGradientPreset);
+    if (gradientColorTopInput) gradientColorTopInput.addEventListener('input', previewCurrentGradient);
+    if (gradientColorBottomInput) gradientColorBottomInput.addEventListener('input', previewCurrentGradient);
+    if (gradientSpeedInput) gradientSpeedInput.addEventListener('input', previewCurrentGradient);
 
-    if(gradientColorTopInput) gradientColorTopInput.addEventListener('input', previewCurrentGradient);
-    if(gradientColorBottomInput) gradientColorBottomInput.addEventListener('input', previewCurrentGradient);
-    if(gradientSpeedInput) gradientSpeedInput.addEventListener('input', previewCurrentGradient);
+    const infoModal = document.getElementById('custom-info-modal');
+    if (infoModal) {
+        infoModal.querySelector('#custom-info-ok').addEventListener('click', () => infoModal.style.display = 'none');
+        infoModal.querySelector('#custom-info-close-button').addEventListener('click', () => infoModal.style.display = 'none');
+    }
+
+    const openNotificationsButton = document.getElementById('open-notifications-panel-button');
+    if (openNotificationsButton) openNotificationsButton.addEventListener('click', toggleNotificationsPanel);
+    const closeNotificationsButton = document.getElementById('close-notifications-panel-button');
+    if (closeNotificationsButton) closeNotificationsButton.addEventListener('click', toggleNotificationsPanel);
+    const addNewNotificationButton = document.getElementById('add-new-notification-button');
+    if (addNewNotificationButton) addNewNotificationButton.addEventListener('click', openNewNotificationModal);
+    const notificationTypeSelect = document.getElementById('notification-type-select');
+    if (notificationTypeSelect) notificationTypeSelect.addEventListener('change', handleNotificationTypeChange);
+
+    const openStatsButton = document.getElementById('open-stats-button');
+    if (openStatsButton) openStatsButton.addEventListener('click', openStatisticsModal);
 }
-
-
 function checkAuthentication() {
     const token = localStorage.getItem('authToken');
     const loggedInUsername = localStorage.getItem('loggedInUser');
@@ -130,8 +139,121 @@ function handleLogout() {
     window.location.href = 'login.html';
 }
 
+function openItemModal(itemId) {
+    const modal = document.getElementById('item-modal');
+    if (!modal) return;
+    
+    editingItemId = itemId;
+    let itemToEdit = null;
+    
+    for (const storage of storages) {
+        if (Array.isArray(storage.products)) {
+            const foundProduct = storage.products.find(p => p.itemId === itemId);
+            if (foundProduct) {
+                itemToEdit = foundProduct;
+                break;
+            }
+        }
+    }
 
+    if (!itemToEdit) {
+        showInfoModal("Eroare: Produsul nu a fost gasit in datele locale.", "Eroare", "fa-exclamation-triangle");
+        return;
+    }
 
+    document.getElementById('item-modal-title').textContent = `Editare: ${itemToEdit.name}`;
+    document.getElementById('item-name-modal').value = itemToEdit.name;
+    document.getElementById('item-quantity-modal').value = itemToEdit.quantity;
+    document.getElementById('item-unit-modal').value = itemToEdit.unitOfMeasure;
+    
+    modal.querySelector('#item-modal-error').style.display = 'none';
+    modal.style.display = 'flex';
+}
+
+function closeItemModal() {
+    const modal = document.getElementById('item-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+    editingItemId = null;
+}
+
+async function handleUpdateItem() {
+    if (!editingItemId) return;
+    const errorContainer = document.getElementById('item-modal-error');
+    errorContainer.style.display = 'none';
+
+    const name = document.getElementById('item-name-modal').value.trim();
+    const quantity = parseFloat(document.getElementById('item-quantity-modal').value);
+    const unit_of_measure = document.getElementById('item-unit-modal').value;
+
+    if (!name || isNaN(quantity)) {
+        errorContainer.textContent = "Numele si cantitatea sunt obligatorii.";
+        errorContainer.style.display = 'block';
+        return;
+    }
+    if (unit_of_measure === 'buc' && !Number.isInteger(quantity)) {
+        errorContainer.textContent = 'Pentru "buc", cantitatea trebuie sa fie un numar intreg.';
+        errorContainer.style.display = 'block';
+        return;
+    }
+
+    let itemToUpdate = null;
+    let storageOfItem = null;
+    for (const storage of storages) {
+        if (Array.isArray(storage.products)) {
+            const foundProduct = storage.products.find(p => p.itemId === editingItemId);
+            if (foundProduct) {
+                itemToUpdate = foundProduct;
+                storageOfItem = storage;
+                break;
+            }
+        }
+    }
+
+    if (!itemToUpdate) {
+        errorContainer.textContent = "Eroare interna: nu s-au gasit datele originale ale produsului.";
+        errorContainer.style.display = 'block';
+        return;
+    }
+    
+    const updatedData = { ...itemToUpdate, name, quantity, unit_of_measure, storage_id: itemToUpdate.storageId, category_id: itemToUpdate.categoryId };
+
+    const token = localStorage.getItem('authToken');
+    try {
+        const response = await fetch(`http://localhost:3000/api/items/${editingItemId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify(updatedData)
+        });
+
+        const result = await response.json();
+        if (!response.ok) { throw new Error(result.message); }
+
+        showInfoModal(result.message, "Succes");
+        closeItemModal();
+        
+        if (result.notificationMessage) {
+            setTimeout(() => {
+                showInfoModal(result.notificationMessage, "Alertă Stoc", "fa-exclamation-triangle", "#FFC000");
+            }, 700);
+        }
+        
+        itemToUpdate.name = name;
+        itemToUpdate.quantity = quantity;
+        itemToUpdate.unitOfMeasure = unit_of_measure;
+        
+        const storageElement = document.querySelector(`.storage-item[data-storage-id="${storageOfItem.id}"]`);
+        if (storageElement) {
+            const tableBody = storageElement.querySelector('.product-list-in-card tbody');
+            await renderProductsInCard(storageOfItem.id, tableBody);
+        }
+
+    } catch (error) {
+        errorContainer.textContent = error.message;
+        errorContainer.style.display = 'block';
+    }
+}
 function lightenHexColor(hex, percent) {
     if (!hex || typeof hex !== 'string') return '#FFFFFF';
     let h = hex.replace(/^#/, '');
@@ -749,14 +871,28 @@ function renderStorages() {
         expandableContent.appendChild(addProductButtonInCard);
         expandableContent.appendChild(productFormInCard);
         expandableContent.appendChild(productTableInCard);
-        expandButton.addEventListener('click', (event) => {
-            event.stopPropagation(); const currentStorageId = parseInt(storageItem.dataset.storageId, 10);
-            const isExpanded = expandableContent.classList.toggle('expanded');
-            expandButton.setAttribute('aria-expanded', isExpanded.toString());
-            expandButton.innerHTML = isExpanded ? '<i class="fas fa-minus"></i>' : '<i class="fas fa-plus"></i>';
-            if (isExpanded) { renderProductsInCard(currentStorageId, productTableInCard.querySelector('tbody')); requestAnimationFrame(() => { if(expandableContent.classList.contains('expanded')) expandableContent.style.maxHeight = expandableContent.scrollHeight + "px"; });
-            } else { expandableContent.style.maxHeight = '0px'; productFormInCard.style.display = 'none'; addProductButtonInCard.style.display = 'block';}
+        expandButton.addEventListener('click', async (event) => {
+    event.stopPropagation();
+    const currentStorageId = parseInt(storageItem.dataset.storageId, 10);
+    const isExpanded = expandableContent.classList.toggle('expanded');
+    
+    expandButton.setAttribute('aria-expanded', isExpanded.toString());
+    expandButton.innerHTML = isExpanded ? '<i class="fas fa-minus"></i>' : '<i class="fas fa-plus"></i>';
+
+    if (isExpanded) {
+        await renderProductsInCard(currentStorageId, productTableInCard.querySelector('tbody'));
+        
+        requestAnimationFrame(() => {
+            if(expandableContent.classList.contains('expanded')) {
+                expandableContent.style.maxHeight = expandableContent.scrollHeight + "px";
+            }
         });
+    } else {
+        expandableContent.style.maxHeight = '0px';
+        productFormInCard.style.display = 'none';
+        addProductButtonInCard.style.display = 'block';
+    }
+});
         addProductButtonInCard.addEventListener('click', (event) => {
             const formForThisStorage = expandableContent.querySelector('.product-form-in-card');
             const addButtonForThisStorage = expandableContent.querySelector('.add-product-in-card-button');
@@ -847,7 +983,7 @@ async function deleteStorage(storageId, confirmTitle = "Confirmare Stergere") {
 
 async function renderProductsInCard(storageId, targetTableBodyElement) {
     if (!targetTableBodyElement) {
-        console.error("Elementul tbody tinta pentru produse nu a fost gasit pentru storageId:", storageId);
+        console.error("Elementul tinta pentru produse nu a fost gasit pentru storageId:", storageId);
         return;
     }
 
@@ -872,6 +1008,12 @@ async function renderProductsInCard(storageId, targetTableBodyElement) {
         }
 
         const items = await response.json();
+
+        const currentStorage = storages.find(s => s.id === storageId);
+        if (currentStorage) {
+            currentStorage.products = items; 
+        }
+
         targetTableBodyElement.innerHTML = ""; 
 
         if (items && items.length > 0) {
@@ -883,6 +1025,7 @@ async function renderProductsInCard(storageId, targetTableBodyElement) {
                     <td data-label="Cantitate">${product.quantity}</td>
                     <td data-label="Unitate">${product.unitOfMeasure}</td> 
                     <td data-label="Actiuni">
+                        <button class="xp-button xp-button-table-action" onclick="openItemModal(${product.itemId})">Editeaza</button>
                         <button class="xp-button xp-button-table-action" onclick="deleteProductFromCard(${storageId}, ${product.itemId}, '${product.name.replace(/'/g, "\\'")}')">Sterge</button>
                     </td>
                 `;
@@ -899,7 +1042,6 @@ async function renderProductsInCard(storageId, targetTableBodyElement) {
         targetTableBodyElement.innerHTML = `<tr><td colspan="4" class="xp-empty-message">Eroare la incarcarea produselor: ${error.message}</td></tr>`;
     }
 }
-
 async function addProductInCard(storageId, formElement, targetTableBodyElement, addButtonElement, expandableContentElement) {
     const errorDisplayContainer = formElement; 
     if (errorDisplayContainer) hideFormError(errorDisplayContainer);
@@ -934,7 +1076,10 @@ async function addProductInCard(storageId, formElement, targetTableBodyElement, 
         if(errorDisplayContainer) showFormError(errorDisplayContainer, 'Cantitatea trebuie sa fie un numar valid si pozitiv.'); 
         return; 
     }
-
+     if (unit_of_measure === 'buc' && !Number.isInteger(quantity)) {
+        if(errorDisplayContainer) showFormError(errorDisplayContainer, 'Pentru unitatea "buc", cantitatea trebuie sa fie un numar intreg (fara zecimale).');
+        return;
+    }
     const token = localStorage.getItem('authToken');
     if (!token) {
         showInfoModal("Sesiunea a expirat. Va rugam sa va reautentificati.", "Eroare Autentificare");
@@ -1040,4 +1185,303 @@ async function deleteProductFromCard(storageId, itemId, productName = "acest pro
             showInfoModal(`Eroare la stergerea produsului: ${error.message}`, "Eroare Retea", "fa-ethernet", "#D81E05");
         }
     });
+}
+function toggleNotificationsPanel() {
+    const panel = document.getElementById('notifications-panel');
+    if (panel) {
+        const isOpen = panel.classList.toggle('open');
+        if (isOpen) {
+            loadUserNotifications();
+            loadUserAlerts();     
+        }
+    }
+}
+
+async function loadUserNotifications() {
+    const listContainer = document.getElementById('notifications-list');
+    if (!listContainer) return;
+    listContainer.innerHTML = '<p class="xp-empty-message">Se incarca regulile...</p>';
+    const token = localStorage.getItem('authToken');
+
+    try {
+        const response = await fetch('http://localhost:3000/api/notifications', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) { throw new Error('Nu s-au putut incarca regulile.'); }
+        
+        const rules = await response.json();
+        renderNotificationRules(rules);
+
+    } catch (error) {
+        listContainer.innerHTML = `<p class="xp-empty-message">${error.message}</p>`;
+    }
+}
+
+function renderNotificationRules(rules) {
+    const listContainer = document.getElementById('notifications-list');
+    if (!listContainer) return;
+    listContainer.innerHTML = ''; 
+
+    if (!rules || rules.length === 0) {
+        listContainer.innerHTML = '<p class="xp-empty-message">Nu ai nicio regula de notificare setata.</p>';
+        return;
+    }
+
+    rules.forEach(rule => {
+        const ruleElement = document.createElement('div');
+        ruleElement.className = 'notification-item';
+        
+        let description = '';
+        if (rule.notificationType === 'LOW_STOCK') {
+            description = `Primesti alerta cand stocul scade sub <strong>${rule.threshold}</strong>.`;
+        } else if (rule.notificationType === 'SCHEDULED_UPDATE') {
+            description = `Primesti update zilnic la ora <strong>${rule.triggerTime}</strong>.`;
+        }
+
+        ruleElement.innerHTML = `
+            <div class="notification-item-header">
+                <span class="notification-item-title">${rule.itemName}</span>
+                <button class="xp-button xp-button-table-action" onclick="deleteNotification(${rule.notificationId})">Sterge</button>
+            </div>
+            <div class="notification-item-body">
+                <p>${description}</p>
+            </div>`;
+        listContainer.appendChild(ruleElement);
+    });
+}
+
+async function openNewNotificationModal() {
+    const modal = document.getElementById('new-notification-modal');
+    const itemSelect = document.getElementById('notification-item-select');
+    const token = localStorage.getItem('authToken');
+    if (!modal || !itemSelect) {
+        console.error("Modalul de notificare sau select-ul pentru iteme nu a fost gasit in HTML!");
+        return;
+    }
+
+    modal.querySelectorAll('input, select').forEach(el => {
+        if (el.type === 'checkbox') el.checked = false;
+        else if (el.id !== 'notification-type-select') el.value = '';
+    });
+    document.getElementById('notify-on-site-checkbox').checked = true;
+    document.getElementById('notification-type-select').value = 'LOW_STOCK';
+    handleNotificationTypeChange();
+    modal.querySelector('#new-notification-modal-error').style.display = 'none';
+    
+    modal.style.display = 'flex';
+
+    itemSelect.innerHTML = '<option value="">Se incarca...</option>';
+    try {
+        const response = await fetch('http://localhost:3000/api/items', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) throw new Error('Eroare la incarcarea produselor.');
+        
+        const items = await response.json();
+        itemSelect.innerHTML = '<option value="">-- Selecteaza un produs --</option>';
+        if (items.length === 0) {
+            itemSelect.innerHTML = '<option value="">Nu ai niciun produs</option>';
+            return;
+        }
+        
+        items.forEach(item => {
+            const option = document.createElement('option');
+            option.value = item.itemId;
+            option.textContent = item.name;
+            option.dataset.unit = item.unitOfMeasure;
+            itemSelect.appendChild(option);
+        });
+    } catch (error) {
+        itemSelect.innerHTML = `<option value="">${error.message}</option>`;
+    }
+}
+
+function closeNewNotificationModal() {
+    const modal = document.getElementById('new-notification-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+function handleNotificationTypeChange() {
+    const type = document.getElementById('notification-type-select').value;
+    const lowStockFields = document.getElementById('low-stock-fields');
+    const scheduledFields = document.getElementById('scheduled-fields');
+
+    if (type === 'LOW_STOCK') {
+        lowStockFields.style.display = 'block';
+        scheduledFields.style.display = 'none';
+    } else {
+        lowStockFields.style.display = 'none';
+        scheduledFields.style.display = 'block';
+    }
+}
+async function deleteNotification(notificationId) {
+    if (confirm(`Esti sigur ca vrei sa stergi aceasta regula de notificare?`)) {
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+            showInfoModal("Sesiune expirata. Te rugam sa te re-autentifici.", "Eroare");
+            return;
+        }
+
+        try {
+            const response = await fetch(`http://localhost:3000/api/notifications/${notificationId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const result = await response.json();
+
+            if (!response.ok) { 
+                throw new Error(result.message || 'Eroare de la server.'); 
+            }
+            
+            showInfoModal(result.message || "Regula de notificare a fost stearsa.", "Succes");
+            loadUserNotifications(); 
+
+        } catch(error) {
+            showInfoModal(error.message, "Eroare", "fa-exclamation-triangle");
+        }
+    }
+}
+
+async function handleSaveNotification() {
+    const errorContainer = document.getElementById('new-notification-modal-error');
+    errorContainer.style.display = 'none';
+
+    const itemSelect = document.getElementById('notification-item-select');
+    const thresholdInput = document.getElementById('notification-threshold-input');
+
+    const notificationData = {
+        itemId: itemSelect.value,
+        notificationType: document.getElementById('notification-type-select').value,
+        threshold: thresholdInput.value,
+        triggerTime: document.getElementById('notification-time-input').value,
+        notifyOnSite: document.getElementById('notify-on-site-checkbox').checked,
+        notifyByEmail: document.getElementById('notify-by-email-checkbox').checked
+    };
+    
+    if (!notificationData.itemId) {
+        errorContainer.textContent = 'Trebuie să selectezi un produs.';
+        errorContainer.style.display = 'block';
+        return;
+    }
+    if (notificationData.notificationType === 'LOW_STOCK') {
+        const selectedOption = itemSelect.options[itemSelect.selectedIndex];
+        const unit = selectedOption.dataset.unit;
+        const threshold = parseFloat(notificationData.threshold);
+
+        if (isNaN(threshold) || notificationData.threshold.trim() === '') {
+            errorContainer.textContent = 'Pragul de stoc trebuie să fie un număr.';
+            errorContainer.style.display = 'block';
+            return;
+        }
+        if (unit === 'buc' && !Number.isInteger(threshold)) {
+            errorContainer.textContent = 'Pentru "buc", pragul de stoc trebuie să fie un număr întreg.';
+            errorContainer.style.display = 'block';
+            return;
+        }
+    }
+
+
+    if (!notificationData.notifyOnSite && !notificationData.notifyByEmail) {
+        errorContainer.textContent = 'Trebuie să selectezi cel puțin o metodă de livrare.';
+        errorContainer.style.display = 'block';
+        return;
+    }
+
+    const token = localStorage.getItem('authToken');
+    try {
+        const response = await fetch('http://localhost:3000/api/notifications', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify(notificationData)
+        });
+        const result = await response.json();
+        if (!response.ok) { throw new Error(result.message); }
+
+        showInfoModal(result.message, "Succes");
+        closeNewNotificationModal();
+        loadUserNotifications();
+
+    } catch (error) {
+        errorContainer.textContent = error.message;
+        errorContainer.style.display = 'block';
+    }
+}
+async function openStatisticsModal() {
+    const modal = document.getElementById('statistics-modal');
+    const contentArea = document.getElementById('statistics-modal-content');
+    if (!modal || !contentArea) return;
+
+    modal.style.display = 'flex';
+    contentArea.innerHTML = '<p>Se incarca statisticile...</p>';
+    
+    const token = localStorage.getItem('authToken');
+    try {
+        const response = await fetch('http://localhost:3000/api/statistics', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error("Eroare de la server (non-JSON):", errorText);
+            throw new Error(errorText || `Eroare HTTP: ${response.status}`);
+        }
+        
+        const stats = await response.json();
+        renderStatistics(stats);
+
+    } catch (error) {
+        contentArea.innerHTML = `<div class="form-error-message xp-error-message" style="display:block;">Eroare la preluarea statisticilor: ${error.message}</div>`;
+    }
+}
+
+function closeStatisticsModal() {
+    const modal = document.getElementById('statistics-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+function renderStatistics(stats) {
+    const contentArea = document.getElementById('statistics-modal-content');
+    
+    let html = `<h4>Statistici Generale</h4>
+                <p><strong>Total Depozite:</strong> ${stats.general.totalStorages}</p>
+                <p><strong>Total Produse:</strong> ${stats.general.totalItems}</p>
+                <hr>`;
+
+    html += `<h4>Produse cu Stoc Redus</h4>`;
+    if (stats.lowStockItems && stats.lowStockItems.length > 0) {
+        html += `<table class="xp-table">
+                    <thead><tr><th>Produs</th><th>Depozit</th><th>Cantitate Curenta</th><th>Prag Stoc Minim</th></tr></thead>
+                    <tbody>`;
+        stats.lowStockItems.forEach(item => {
+            html += `<tr>
+                        <td>${item.name}</td>
+                        <td>${item.storageName}</td>
+                        <td>${item.quantity} ${item.unitOfMeasure}</td>
+                        <td>${item.threshold} ${item.unitOfMeasure}</td>
+                     </tr>`;
+        });
+        html += `</tbody></table>`;
+    } else {
+        html += '<p>Niciun produs nu are stocul sub pragul minim setat.</p>';
+    }
+    html += '<hr>';
+
+    html += `<h4>Distributie pe Categorii</h4>`;
+    if (stats.categoryDistribution && stats.categoryDistribution.length > 0) {
+         html += `<table class="xp-table">
+                    <thead><tr><th>Categorie</th><th>Numar de Produse</th></tr></thead>
+                    <tbody>`;
+        stats.categoryDistribution.forEach(cat => {
+            html += `<tr>
+                        <td>${cat.categoryName}</td>
+                        <td>${cat.itemCount}</td>
+                     </tr>`;
+        });
+        html += `</tbody></table>`;
+    } else {
+        html += '<p>Nu exista produse asociate unor categorii.</p>';
+    }
+
+    contentArea.innerHTML = html;
 }

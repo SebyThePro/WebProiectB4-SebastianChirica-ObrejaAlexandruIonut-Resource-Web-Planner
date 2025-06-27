@@ -1,4 +1,3 @@
-
 :root {
     --xp-blue: #0A246A;
     --xp-title-text-color: #FFFFFF;
@@ -25,19 +24,19 @@
 }
 
 @font-face {
-  font-family: 'IBM_VGA_8x16';
-  src: url('../fonts/IBM_VGA_8x16.woff') format('woff'),
-       url('../fonts/IBM_VGA_8x16-2x.woff') format('woff');
-  font-weight: normal;
-  font-style: normal;
+    font-family: 'IBM_VGA_8x16';
+    src: url('../fonts/IBM_VGA_8x16.woff') format('woff'),
+        url('../fonts/IBM_VGA_8x16-2x.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
 }
 
 @font-face {
-  font-family: 'RetroVGA';
-  src: url('../fonts/RetroVGAFont.woff2') format('woff2'),
-       url('../fonts/RetroVGAFont.woff') format('woff');
-  font-weight: normal;
-  font-style: normal;
+    font-family: 'RetroVGA';
+    src: url('../fonts/RetroVGAFont.woff2') format('woff2'),
+        url('../fonts/RetroVGAFont.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
 }
 
 .xp-body {
@@ -60,7 +59,10 @@
 .xp-body::after {
     content: "";
     position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     z-index: -1;
     background-attachment: fixed;
     transition: opacity 1.5s ease-in-out;
@@ -68,21 +70,33 @@
 
 .xp-body::before {
     background-image: linear-gradient(to top,
-        var(--page-bg-color-bottom) 0%,
-        var(--page-bg-color-mid) 50%,
-        var(--page-bg-color-top) 100%
-    );
+            var(--page-bg-color-bottom) 0%,
+            var(--page-bg-color-mid) 50%,
+            var(--page-bg-color-top) 100%);
     opacity: 1;
 }
 
 .xp-body::after {
     background-image: linear-gradient(to top,
-        var(--page-bg-color-top) 0%,
-        var(--page-bg-color-mid) 50%,
-        var(--page-bg-color-bottom) 100%
-    );
+            var(--page-bg-color-top) 0%,
+            var(--page-bg-color-mid) 50%,
+            var(--page-bg-color-bottom) 100%);
     opacity: 0;
     animation: fadeGradientVibrant var(--page-bg-animation-speed) ease-in-out infinite;
+}
+
+@keyframes fadeGradientVibrant {
+    0% {
+        opacity: 0;
+    }
+
+    50% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
+    }
 }
 
 @keyframes fadeGradientVibrant {
@@ -555,6 +569,140 @@
 }
 
 
+.notification-bell-button {
+    position: absolute;
+    right: 120px;
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 5px 10px;
+}
+
+.notification-count {
+    position: absolute;
+    top: -5px;
+    right: -8px;
+    background-color: red;
+    color: white;
+    border-radius: 50%;
+    padding: 2px 6px;
+    font-size: 10px;
+    font-weight: bold;
+    border: 1px solid white;
+}
+
+.notifications-panel {
+    position: fixed;
+    top: 0;
+    right: -350px;
+    width: 350px;
+    height: 100%;
+    background-color: #ECE9D8;
+    border-left: 2px solid #003C74;
+    box-shadow: -5px 0 15px rgba(0, 0, 0, 0.2);
+    z-index: 10000;
+    transition: right 0.3s ease-in-out;
+    display: flex;
+    flex-direction: column;
+}
+
+.notifications-panel.open {
+    right: 0;
+}
+
+.notifications-panel-header {
+    background-color: #0053A0;
+    color: white;
+    padding: 10px 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.notifications-panel-header h3 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.close-panel-button {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.notifications-panel-content {
+    padding: 15px;
+    overflow-y: auto;
+    flex-grow: 1;
+}
+
+.notifications-panel-actions {
+    margin-bottom: 20px;
+}
+
+.notification-item {
+    background-color: #fff;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    padding: 10px;
+    margin-bottom: 10px;
+}
+
+.notification-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.notification-item-title {
+    font-weight: bold;
+}
+
+.notification-item-body {
+    font-size: 13px;
+    color: #333;
+}
+.header-buttons-wrapper {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    flex-direction: column; 
+    gap: 5px;              
+}
+
+
+.header-action-button {
+    background-color: var(--xp-control-grey);
+    border: 1px solid #000000;
+    font-family: var(--xp-font);
+    font-weight: bold;
+    color: #000000;
+    padding: 2px 8px;
+    min-width: 90px; 
+    height: 25px;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+    box-shadow: none; 
+    margin: 0; 
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.header-action-button:hover {
+    background-color: var(--xp-control-light-grey-hover);
+}
+
+.header-action-button:active {
+    background-color: var(--xp-control-dark-grey-active);
+    border: 1px solid #000000; 
+    transform: translateY(1px); 
+}
 @media (max-width: 768px) {
     #storages-section.xp-panel { max-width: calc(100% - 20px); }
     .xp-storage-item { max-width: 100%; }

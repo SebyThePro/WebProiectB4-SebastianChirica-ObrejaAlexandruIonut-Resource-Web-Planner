@@ -1,4 +1,7 @@
-
+const { XMLParser } = require("fast-xml-parser");
+const { parse } = require('csv-parse/sync');
+const { Parser } = require('json2csv');
+const js2xmlparser = require("js2xmlparser");
 const http = require('http');
 const oracledb = require('oracledb');
 const dbConfig = require('./db_config/db_config.js');
@@ -6,6 +9,8 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
+const fs = require('fs');
+const path = require('path');
 
 const JWT_SECRET = 'cheiaTaSecretaSuperComplexa123!';
 
@@ -64,18 +69,6 @@ async function setupEmailTransport() {
         });
     }
 }
-
-try {
-    oracledb.initOracleClient({ libDir: 'C:\\Oracle\\instantclient_23_8' });
-    console.log("Oracle Client initializat cu succes din initOracleClient.");
-} catch (err) {
-    console.error("Eroare FATALA la initializarea Oracle Client:", err);
-    console.error("Verifica daca Oracle Instant Client este instalat corect si calea specificata in initOracleClient este valida.");
-    console.error("Verifica si daca ai Microsoft Visual C++ Redistributable corespunzator instalat si ai repornit sistemul.");
-    console.error("Aceasta eroare opreste pornirea serverului.");
-    process.exit(1);
-}
-
 function authenticateToken(req, res) {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -96,8 +89,25 @@ function authenticateToken(req, res) {
         return null;
     }
 }
+function serveStaticFile(res, filePath, contentType) {
+    fs.readFile(filePath, (err, content) => {
+        if (err) {
+            if (err.code === 'ENOENT') {
+                res.writeHead(404, { 'Content-Type': 'text/plain' });
+                res.end('404 Not Found');
+            } else {
+                res.writeHead(500);
+                res.end(`Server Error: ${err.code}`);
+            }
+        } else {
+            res.writeHead(200, { 'Content-Type': contentType });
+            res.end(content, 'utf-8');
+        }
+    });
+}
 
 const server = http.createServer(async (req, res) => {
+     console.log(`[SPION] Serverul a primit o cerere: Metoda=${req.method}, URL=${req.url}`);
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -107,8 +117,24 @@ const server = http.createServer(async (req, res) => {
         res.end();
         return;
     }
+if (!req.url.startsWith('/api/')) {
+        let filePath = req.url === '/' ? 'login.html' : req.url;
+        let extname = path.extname(filePath);
+        let contentType = 'text/html';
 
-    if (req.url === '/api/register' && req.method === 'POST') {
+        switch (extname) {
+            case '.js': contentType = 'text/javascript'; break;
+            case '.css': contentType = 'text/css'; break;
+            case '.png': contentType = 'image/png'; break;
+            case '.jpg': contentType = 'image/jpg'; break;
+            case '.woff': contentType = 'font/woff'; break;
+            case '.woff2': contentType = 'font/woff2'; break;
+        }
+        
+        const fullFilePath = path.join(__dirname, '..', 'src', filePath);
+        serveStaticFile(res, fullFilePath, contentType);
+    }
+    else if (req.url === '/api/register' && req.method === 'POST') {
         try {
             const { username, email, password } = await parseRequestBody(req);
             if (!username || !email || !password) {
@@ -208,7 +234,6 @@ const server = http.createServer(async (req, res) => {
             let connection;
             try {
                 connection = await oracledb.getConnection(dbConfig);
-                // Apeleaza procedura noua care stocheaza codul
                 await connection.execute(
                     `BEGIN store_reset_code(:p_email, :p_reset_code, :o_error_message); END;`,
                     { p_email: email, p_reset_code: resetCode, o_error_message: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 250 } }
@@ -241,9 +266,7 @@ const server = http.createServer(async (req, res) => {
     try {
         const { email, code, newPassword } = await parseRequestBody(req);
 
-        // --- ADAUGARE PENTRU DEBUGGING ---
         console.log(`[DEBUG] Cerere de resetare primita: Email='${email}', Cod Introdus='${code}'`);
-        // ------------------------------------
 
         if (!email || !code || !newPassword) {
             res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -278,7 +301,6 @@ const server = http.createServer(async (req, res) => {
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ message: 'Parola a fost resetata cu succes!' }));
             } else {
-                // Afisam in consola si eroarea din DB pentru debugging
                 console.log(`[DEBUG] Validare esuata in DB. Mesaj: ${errorMessage}`);
                 res.writeHead(400, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ message: errorMessage || 'Cod invalid, expirat sau emailul este incorect.' }));
@@ -800,7 +822,7 @@ const server = http.createServer(async (req, res) => {
                 res.end(JSON.stringify({ message: errorMessage }));
             } else if (rowsDeleted === 1) {
                 res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ message: 'Depozitul si articolele asociate (daca exista constrangere CASCADE) au fost sterse cu succes.' }));
+                res.end(JSON.stringify({ message: 'Depozitul a fost sters cu succes.' }));
             } else {
                  res.writeHead(404, { 'Content-Type': 'application/json' });
                  res.end(JSON.stringify({ message: 'Depozitul nu a fost gasit sau nu aveti permisiunea sa il stergeti.' }));
@@ -947,77 +969,75 @@ const server = http.createServer(async (req, res) => {
             if (connection) { try { await connection.close(); } catch (closeErr) { console.error("Eroare la inchiderea conexiunii (GET items):", closeErr); } }
         }
     }
-    else if (req.url.match(/^\/api\/items\/([0-9]+)$/) && req.method === 'PUT') {
-        const userDataFromToken = authenticateToken(req, res);
-        if (!userDataFromToken) return;
+else if (req.url.match(/^\/api\/items\/([0-9]+)$/) && req.method === 'PUT') {
+    const userDataFromToken = authenticateToken(req, res);
+    if (!userDataFromToken) return;
 
-        try {
-            const itemId = parseInt(req.url.split('/')[3], 10);
-            const { storage_id, category_id, name, description, quantity, unit_of_measure, low_stock_threshold, expiry_date, check_date } = await parseRequestBody(req);
+    try {
+        const itemId = parseInt(req.url.split('/')[3], 10);
+        const { storage_id, category_id, name, description, quantity, unit_of_measure, low_stock_threshold, expiry_date, check_date } = await parseRequestBody(req);
 
-            if (!storage_id || !name || !unit_of_measure || quantity === undefined || quantity === null) {
-                res.writeHead(400, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ message: 'ID-ul depozitului, numele, cantitatea si unitatea de masura sunt obligatorii pentru actualizare.' }));
-                return;
-            }
-
-            let connection;
-            try {
-                connection = await oracledb.getConnection(dbConfig);
-                const result = await connection.execute(
-                    `BEGIN update_item(
-                        :p_item_id, :p_user_id, :p_storage_id, :p_category_id, :p_new_name, :p_new_description,
-                        :p_new_quantity, :p_new_unit_of_measure, :p_new_low_stock_threshold,
-                        :p_new_expiry_date, :p_new_check_date,
-                        :o_rows_updated, :o_error_message
-                    ); END;`,
-                    {
-                        p_item_id: itemId,
-                        p_user_id: userDataFromToken.userId,
-                        p_storage_id: storage_id,
-                        p_category_id: category_id || null,
-                        p_new_name: name,
-                        p_new_description: description || null,
-                        p_new_quantity: quantity,
-                        p_new_unit_of_measure: unit_of_measure,
-                        p_new_low_stock_threshold: low_stock_threshold || null,
-                        p_new_expiry_date: expiry_date ? new Date(expiry_date) : null,
-                        p_new_check_date: check_date ? new Date(check_date) : null,
-                        o_rows_updated: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
-                        o_error_message: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 250 }
-                    }
-                );
-
-                const rowsUpdated = result.outBinds.o_rows_updated;
-                const errorMessage = result.outBinds.o_error_message;
-
-                if (errorMessage && (rowsUpdated === 0 || rowsUpdated === undefined)) {
-                    if (errorMessage.toLowerCase().includes('nu exista') || errorMessage.toLowerCase().includes('negasit') || errorMessage.toLowerCase().includes('nu apartine')) {
-                         res.writeHead(404, { 'Content-Type': 'application/json' });
-                     } else {
-                         res.writeHead(400, { 'Content-Type': 'application/json' });
-                     }
-                    res.end(JSON.stringify({ message: errorMessage }));
-                } else if (rowsUpdated === 1) {
-                    res.writeHead(200, { 'Content-Type': 'application/json' });
-                    res.end(JSON.stringify({ message: 'Articolul a fost actualizat cu succes.', itemId: itemId }));
-                } else {
-                     res.writeHead(404, { 'Content-Type': 'application/json' });
-                     res.end(JSON.stringify({ message: 'Articolul nu a fost gasit sau nu aveti permisiunea sa il modificati.' }));
-                }
-            } catch (dbErr) {
-                console.error(`Eroare Baza de Date la PUT /api/items/${itemId}:`, dbErr);
-                res.writeHead(500, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ message: 'Eroare interna la actualizarea articolului.' }));
-            } finally {
-                if (connection) { try { await connection.close(); } catch (closeErr) { console.error("Eroare la inchiderea conexiunii (PUT items):", closeErr); } }
-            }
-        } catch (parseErr) {
-            console.error("Eroare la parsarea corpului cererii (PUT items):", parseErr);
+        if (!storage_id || !name || quantity === undefined) {
             res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ message: parseErr.message || 'Format JSON invalid.' }));
+            res.end(JSON.stringify({ message: 'ID-ul depozitului, numele si cantitatea sunt obligatorii.' }));
+            return;
         }
+
+        let connection;
+        try {
+            connection = await oracledb.getConnection(dbConfig);
+
+            const updateResult = await connection.execute(
+                `BEGIN update_item(:p_item_id, :p_user_id, :p_storage_id, :p_category_id, :p_new_name, :p_new_description, :p_new_quantity, :p_new_unit_of_measure, :p_new_low_stock_threshold, :p_new_expiry_date, :p_new_check_date, :o_rows_updated, :o_error_message); END;`,
+                {
+                    p_item_id: itemId,
+                    p_user_id: userDataFromToken.userId,
+                    p_storage_id: storage_id,
+                    p_category_id: category_id || null,
+                    p_new_name: name,
+                    p_new_description: description || null,
+                    p_new_quantity: quantity,
+                    p_new_unit_of_measure: unit_of_measure,
+                    p_new_low_stock_threshold: low_stock_threshold || null,
+                    p_new_expiry_date: expiry_date ? new Date(expiry_date) : null,
+                    p_new_check_date: check_date ? new Date(check_date) : null,
+                    o_rows_updated: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
+                    o_error_message: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 250 }
+                }
+            );
+            
+            const updateSuccess = updateResult.outBinds.o_rows_updated;
+            const updateErrorMessage = updateResult.outBinds.o_error_message;
+
+            if (!updateSuccess || updateErrorMessage) {
+                return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ message: updateErrorMessage || 'Actualizarea a esuat.' }));
+            }
+
+            await connection.execute(
+                `BEGIN check_low_stock_trigger(:p_item_id); END;`,
+                {
+                    p_item_id: itemId
+                }
+            );
+            
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ message: 'Articolul a fost actualizat cu succes.' }));
+
+        } catch (dbErr) {
+            console.error(`Eroare Baza de Date la PUT /api/items/${itemId}:`, dbErr);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ message: 'Eroare interna la actualizarea articolului.' }));
+        } finally {
+            if (connection) { 
+                try { await connection.close(); } catch (e) { console.error("Eroare la inchiderea conexiunii:", e); }
+            }
+        }
+    } catch (parseErr) {
+        console.error("Eroare la parsarea corpului cererii (PUT items):", parseErr);
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ message: 'Format JSON invalid.' }));
     }
+}
     else if (req.url.match(/^\/api\/items\/([0-9]+)$/) && req.method === 'DELETE') {
         const userDataFromToken = authenticateToken(req, res);
         if (!userDataFromToken) return;
@@ -1057,14 +1077,768 @@ const server = http.createServer(async (req, res) => {
             if (connection) { try { await connection.close(); } catch (closeErr) { console.error("Eroare la inchiderea conexiunii (DELETE items):", closeErr); } }
         }
     }
+    else if (req.url === '/api/notifications' && req.method === 'GET') {
+    const userDataFromToken = authenticateToken(req, res);
+    if (!userDataFromToken) return;
+
+    let connection;
+    try {
+        connection = await oracledb.getConnection(dbConfig);
+        const result = await connection.execute(
+            `BEGIN get_user_notifications(:p_user_id, :o_notifications_cursor, :o_error_message); END;`,
+            {
+                p_user_id: userDataFromToken.userId,
+                o_notifications_cursor: { dir: oracledb.BIND_OUT, type: oracledb.CURSOR },
+                o_error_message: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 200 }
+            }
+        );
+
+        const errorMessage = result.outBinds.o_error_message;
+        if (errorMessage) {
+            throw new Error(errorMessage);
+        }
+
+        const cursor = result.outBinds.o_notifications_cursor;
+        const notifications = [];
+        let row;
+        while ((row = await cursor.getRow())) {
+            notifications.push({
+                notificationId: row[0],
+                itemId: row[1],
+                itemName: row[2],
+                notificationType: row[3],
+                threshold: row[4],
+                triggerTime: row[5],
+                notifyOnSite: row[6],
+                notifyByEmail: row[7],
+                isActive: row[8]
+            });
+        }
+        await cursor.close();
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(notifications));
+
+    } catch (err) {
+        console.error("Eroare Baza de Date la GET /api/notifications:", err);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ message: 'Eroare interna la citirea notificarilor.' }));
+    } finally {
+        if (connection) { try { await connection.close(); } catch (closeErr) { console.error(closeErr); } }
+    }
+}
+else if (req.url === '/api/notifications' && req.method === 'POST') {
+    const userDataFromToken = authenticateToken(req, res);
+    if (!userDataFromToken) return;
+
+    try {
+        const { itemId, notificationType, threshold, triggerTime, notifyOnSite, notifyByEmail } = await parseRequestBody(req);
+
+        if (!itemId || !notificationType) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ message: 'ID-ul produsului si tipul notificarii sunt obligatorii.' }));
+            return;
+        }
+
+        let connection;
+        try {
+            connection = await oracledb.getConnection(dbConfig);
+            const result = await connection.execute(
+                `BEGIN create_notification(
+                    :p_user_id, :p_item_id, :p_notification_type, :p_threshold, 
+                    :p_trigger_time, :p_notify_on_site, :p_notify_by_email,
+                    :o_notification_id, :o_error_message
+                ); END;`,
+                {
+                    p_user_id: userDataFromToken.userId,
+                    p_item_id: itemId,
+                    p_notification_type: notificationType,
+                    p_threshold: threshold || null,
+                    p_trigger_time: triggerTime || null,
+                    p_notify_on_site: notifyOnSite ? 1 : 0,
+                    p_notify_by_email: notifyByEmail ? 1 : 0,
+                    o_notification_id: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
+                    o_error_message: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 250 }
+                }
+            );
+
+            const notificationId = result.outBinds.o_notification_id;
+            const errorMessage = result.outBinds.o_error_message;
+
+            if (errorMessage) {
+                return res.writeHead(400, { 'Content-Type': 'application/json' }).end(JSON.stringify({ message: errorMessage }));
+            }
+            
+            if (notificationType === 'LOW_STOCK') {
+                console.log(`[Notificare] Se verifica stocul pentru produsul ID: ${itemId} la crearea regulii...`);
+                
+                await connection.execute(
+                    `BEGIN check_low_stock_trigger(:p_item_id); END;`,
+                    {
+                        p_item_id: itemId
+                    }
+                );
+            }
+
+            res.writeHead(201, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ message: 'Notificare setata cu succes.', notificationId: notificationId }));
+
+        } catch (dbErr) {
+            console.error("Eroare DB la POST /api/notifications:", dbErr);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ message: 'Eroare interna la crearea notificarii.' }));
+        } finally {
+            if (connection) { 
+                try { await connection.close(); } catch (e) { console.error("Eroare la inchiderea conexiunii:", e); }
+            }
+        }
+    } catch (parseErr) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ message: 'Format JSON invalid.' }));
+    }
+}
+else if (req.url.match(/^\/api\/notifications\/([0-9]+)$/) && req.method === 'DELETE') {
+    const userDataFromToken = authenticateToken(req, res);
+    if (!userDataFromToken) return;
+
+    const notificationId = parseInt(req.url.split('/')[3], 10);
+    let connection;
+    try {
+        connection = await oracledb.getConnection(dbConfig);
+        const result = await connection.execute(
+            `BEGIN delete_notification(:p_notification_id, :p_user_id, :o_rows_deleted, :o_error_message); END;`,
+            {
+                p_notification_id: notificationId,
+                p_user_id: userDataFromToken.userId,
+                o_rows_deleted: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
+                o_error_message: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 250 }
+            }
+        );
+
+        const rowsDeleted = result.outBinds.o_rows_deleted;
+        const errorMessage = result.outBinds.o_error_message;
+
+        if (errorMessage || rowsDeleted === 0) {
+            res.writeHead(404, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ message: errorMessage || 'Notificarea nu a fost gasita.' }));
+        } else {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ message: 'Notificarea a fost stearsa cu succes.' }));
+        }
+    } catch (dbErr) {
+        console.error(`Eroare DB la DELETE /api/notifications/${notificationId}:`, dbErr);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ message: 'Eroare interna la stergerea notificarii.' }));
+    } finally {
+        if (connection) { try { await connection.close(); } catch (e) { console.error(e); } }
+    }
+}
+else if (req.url === '/api/alerts' && req.method === 'GET') {
+    const userDataFromToken = authenticateToken(req, res);
+    if (!userDataFromToken) return;
+
+    let connection;
+    try {
+        connection = await oracledb.getConnection(dbConfig);
+        const result = await connection.execute(
+            `SELECT alert_id, message, created_at FROM user_alerts 
+             WHERE user_id = :user_id AND is_read = 0 
+             ORDER BY created_at DESC`,
+            [userDataFromToken.userId]
+        );
+        
+        const alerts = result.rows.map(row => ({
+            alertId: row[0],
+            message: row[1],
+            createdAt: row[2]
+        }));
+        
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(alerts));
+
+    } catch (err) {
+        console.error("Eroare la preluarea alertelor:", err);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ message: 'Eroare interna la preluarea alertelor.' }));
+    } finally {
+        if (connection) { 
+            try { await connection.close(); } catch (e) { console.error("Eroare la inchiderea conexiunii:", e); }
+        }
+    }
+}
+
+else if (req.url === '/api/export/json' && req.method === 'GET') {
+    const userDataFromToken = authenticateToken(req, res);
+    if (!userDataFromToken) return;
+
+    let connection;
+    try {
+        connection = await oracledb.getConnection(dbConfig);
+        const result = await connection.execute(
+            `BEGIN get_all_user_data(:p_user_id, :o_storages_cursor, :o_items_cursor, :o_error_message); END;`,
+            {
+                p_user_id: userDataFromToken.userId,
+                o_storages_cursor: { dir: oracledb.BIND_OUT, type: oracledb.CURSOR },
+                o_items_cursor: { dir: oracledb.BIND_OUT, type: oracledb.CURSOR },
+                o_error_message: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 250 }
+            }
+        );
+        
+        const errorMessage = result.outBinds.o_error_message;
+        if (errorMessage) { throw new Error(errorMessage); }
+
+        const storagesCursor = result.outBinds.o_storages_cursor;
+        const itemsCursor = result.outBinds.o_items_cursor;
+
+        const storages = [];
+        const items = [];
+        let row;
+
+        while ((row = await storagesCursor.getRow())) {
+            storages.push({
+                storageId: row[0], name: row[1], titleBarColor: row[2], titleBarTextColor: row[3],
+                createdAt: row[4], lastUpdated: row[5]
+            });
+        }
+        await storagesCursor.close();
+
+        while ((row = await itemsCursor.getRow())) {
+            items.push({
+                itemId: row[0], userId: row[1], storageId: row[2], categoryId: row[3], name: row[4],
+                description: row[5], quantity: row[6], unitOfMeasure: row[7], lowStockThreshold: row[8],
+                expiryDate: row[9], checkDate: row[10], createdAt: row[11], lastUpdated: row[12]
+            });
+        }
+        await itemsCursor.close();
+        
+        const exportData = {
+            exportDate: new Date().toISOString(),
+            user: {
+                id: userDataFromToken.userId,
+                username: userDataFromToken.username
+            },
+            data: {
+                storages: storages,
+                items: items
+            }
+        };
+
+        const jsonString = JSON.stringify(exportData, null, 2);
+
+        res.writeHead(200, {
+            'Content-Type': 'application/json',
+            'Content-Disposition': 'attachment; filename="date_export.json"'
+        });
+        res.end(jsonString);
+
+    } catch (err) {
+        console.error("Eroare la export JSON:", err);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ message: 'Eroare interna la generarea exportului.' }));
+    } finally {
+        if (connection) { try { await connection.close(); } catch (e) { console.error(e); } }
+    }
+}
+else if (req.url === '/api/export/csv' && req.method === 'GET') {
+    const userDataFromToken = authenticateToken(req, res);
+    if (!userDataFromToken) return;
+
+    let connection;
+    try {
+        connection = await oracledb.getConnection(dbConfig);
+        const result = await connection.execute(
+            `BEGIN get_all_user_data(:p_user_id, :o_storages_cursor, :o_items_cursor, :o_error_message); END;`,
+            {
+                p_user_id: userDataFromToken.userId,
+                o_storages_cursor: { dir: oracledb.BIND_OUT, type: oracledb.CURSOR },
+                o_items_cursor: { dir: oracledb.BIND_OUT, type: oracledb.CURSOR },
+                o_error_message: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 250 }
+            }
+        );
+
+        const errorMessage = result.outBinds.o_error_message;
+        if (errorMessage) { throw new Error(errorMessage); }
+
+        const storagesCursor = result.outBinds.o_storages_cursor;
+        const itemsCursor = result.outBinds.o_items_cursor;
+
+        const storages = [];
+        const items = [];
+        let row;
+
+        while ((row = await storagesCursor.getRow())) {
+            storages.push({
+                storageId: row[0],
+                name: row[1]
+            });
+        }
+        await storagesCursor.close();
+
+        while ((row = await itemsCursor.getRow())) {
+            items.push({
+                itemId: row[0], userId: row[1], storageId: row[2], categoryId: row[3], name: row[4],
+                description: row[5], quantity: row[6], unitOfMeasure: row[7], lowStockThreshold: row[8],
+                expiryDate: row[9], checkDate: row[10]
+            });
+        }
+        await itemsCursor.close();
+
+        const flatData = items.map(item => {
+            const storage = storages.find(s => s.storageId === item.storageId);
+            return {
+                id_produs: item.itemId,
+                nume_produs: item.name,
+                cantitate: item.quantity,
+                unitate_masura: item.unitOfMeasure,
+                descriere: item.description,
+                prag_stoc_minim: item.lowStockThreshold,
+                data_expirare: item.expiryDate,
+                data_verificare: item.checkDate,
+                id_depozit: storage ? storage.storageId : '',
+                nume_depozit: storage ? storage.name : 'N/A'
+            };
+        });
+
+        const fields = ['id_produs', 'nume_produs', 'cantitate', 'unitate_masura', 'nume_depozit', 'descriere', 'prag_stoc_minim', 'data_expirare', 'data_verificare', 'id_depozit'];
+        const json2csvParser = new Parser({ fields });
+        const csv = json2csvParser.parse(flatData);
+
+        res.writeHead(200, {
+            'Content-Type': 'text/csv',
+            'Content-Disposition': 'attachment; filename="export_date.csv"'
+        });
+        res.end(csv);
+
+    } catch (err) {
+        console.error("Eroare la export CSV:", err);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ message: 'Eroare interna la generarea exportului CSV.' }));
+    } finally {
+        if (connection) { 
+            try { await connection.close(); } catch (e) { console.error("Eroare la inchiderea conexiunii:", e); }
+        }
+    }
+}
+else if (req.url === '/api/export/xml' && req.method === 'GET') {
+    const userDataFromToken = authenticateToken(req, res);
+    if (!userDataFromToken) return;
+
+    let connection;
+    try {
+        connection = await oracledb.getConnection(dbConfig);
+        const result = await connection.execute(
+            `BEGIN get_all_user_data(:p_user_id, :o_storages_cursor, :o_items_cursor, :o_error_message); END;`,
+            {
+                p_user_id: userDataFromToken.userId,
+                o_storages_cursor: { dir: oracledb.BIND_OUT, type: oracledb.CURSOR },
+                o_items_cursor: { dir: oracledb.BIND_OUT, type: oracledb.CURSOR },
+                o_error_message: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 250 }
+            }
+        );
+
+        const errorMessage = result.outBinds.o_error_message;
+        if (errorMessage) { throw new Error(errorMessage); }
+
+        const storagesCursor = result.outBinds.o_storages_cursor;
+        const itemsCursor = result.outBinds.o_items_cursor;
+
+        const storages = [];
+        const items = [];
+        let row;
+
+        while ((row = await storagesCursor.getRow())) {
+            storages.push({
+                storageId: row[0], name: row[1], titleBarColor: row[2], titleBarTextColor: row[3],
+                createdAt: row[4], lastUpdated: row[5]
+            });
+        }
+        await storagesCursor.close();
+
+        while ((row = await itemsCursor.getRow())) {
+            items.push({
+                itemId: row[0], userId: row[1], storageId: row[2], categoryId: row[3], name: row[4],
+                description: row[5], quantity: row[6], unitOfMeasure: row[7], lowStockThreshold: row[8],
+                expiryDate: row[9], checkDate: row[10], createdAt: row[11], lastUpdated: row[12]
+            });
+        }
+        await itemsCursor.close();
+
+        const exportData = {
+            exportDate: new Date().toISOString(),
+            user: {
+                id: userDataFromToken.userId,
+                username: userDataFromToken.username
+            },
+            data: {
+                storages: { storage: storages },
+                items: { item: items }
+            }
+        };
+
+        const xml = js2xmlparser.parse("export", exportData);
+
+        res.writeHead(200, {
+            'Content-Type': 'application/xml',
+            'Content-Disposition': 'attachment; filename="export_date.xml"'
+        });
+        res.end(xml);
+
+    } catch (err) {
+        console.error("Eroare la export XML:", err);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ message: 'Eroare interna la generarea exportului XML.' }));
+    } finally {
+        if (connection) { try { await connection.close(); } catch (e) { console.error(e); } }
+    }
+}
+else if (req.url === '/api/import/json' && req.method === 'POST') {
+    const userDataFromToken = authenticateToken(req, res);
+    if (!userDataFromToken) return;
+
+    let connection;
+    try {
+        const importData = await parseRequestBody(req);
+
+        if (!importData || !importData.data || !Array.isArray(importData.data.storages) || !Array.isArray(importData.data.items)) {
+            throw new Error("Formatul datelor JSON este invalid sau incomplet.");
+        }
+
+        connection = await oracledb.getConnection(dbConfig);
+        
+        const storagesForDB = importData.data.storages.map(s => {
+            return {
+                NAME: s.name,
+                TITLE_BAR_COLOR: s.titleBarColor,
+                TITLE_BAR_TEXT_COLOR: s.titleBarTextColor
+            };
+        });
+
+        const itemsForDB = importData.data.items.map(i => {
+            const storageForThisItem = importData.data.storages.find(s => s.storageId === i.storageId);
+            return {
+                STORAGE_NAME: storageForThisItem ? storageForThisItem.name : null,
+                CATEGORY_NAME: null, 
+                NAME: i.name,
+                DESCRIPTION: i.description,
+                QUANTITY: i.quantity,
+                UNIT_OF_MEASURE: i.unitOfMeasure,
+                LOW_STOCK_THRESHOLD: i.lowStockThreshold,
+                EXPIRY_DATE: i.expiryDate ? new Date(i.expiryDate) : null,
+                CHECK_DATE: i.checkDate ? new Date(i.checkDate) : null
+            };
+        });
+
+        const StorageImportType = await connection.getDbObjectClass("STORAGE_IMPORT_TABLE");
+        const ItemImportType = await connection.getDbObjectClass("ITEM_IMPORT_TABLE");
+
+        const storagesToImport = new StorageImportType(storagesForDB);
+        const itemsToImport = new ItemImportType(itemsForDB);
+
+        const result = await connection.execute(
+            `BEGIN import_user_data(:p_user_id, :p_storages, :p_items, :o_error_message); END;`,
+            {
+                p_user_id: userDataFromToken.userId,
+                p_storages: storagesToImport,
+                p_items: itemsToImport,
+                o_error_message: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 500 }
+            }
+        );
+
+        const errorMessage = result.outBinds.o_error_message;
+        if (errorMessage) {
+            throw new Error(errorMessage);
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ message: 'Datele au fost importate cu succes!' }));
+
+    } catch (err) {
+        console.error("Eroare la import JSON:", err);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ message: err.message || 'Eroare interna la procesarea importului.' }));
+    } finally {
+        if (connection) { try { await connection.close(); } catch (e) { console.error(e); } }
+    }
+}
+else if (req.url === '/api/import/csv' && req.method === 'POST') {
+    const userDataFromToken = authenticateToken(req, res);
+    if (!userDataFromToken) return;
+
+    let connection;
+    try {
+        const csvData = await new Promise(resolve => {
+            let body = '';
+            req.on('data', chunk => body += chunk.toString());
+            req.on('end', () => resolve(body));
+        });
+
+        if (!csvData.trim()) {
+            throw new Error("Datele CSV trimise sunt goale.");
+        }
+
+        const records = parse(csvData, {
+            columns: true, 
+            skip_empty_lines: true
+        });
+
+        const storagesFromCsv = [];
+        const itemsFromCsv = [];
+
+        records.forEach(rec => {
+            if (rec.nume_depozit && !storagesFromCsv.some(s => s.NAME === rec.nume_depozit)) {
+                storagesFromCsv.push({
+                    NAME: rec.nume_depozit,
+                    TITLE_BAR_COLOR: '#0058DD', 
+                    TITLE_BAR_TEXT_COLOR: '#FFFFFF'
+                });
+            }
+        });
+
+        records.forEach(rec => {
+            itemsFromCsv.push({
+                STORAGE_NAME: rec.nume_depozit,
+                CATEGORY_NAME: null, 
+                NAME: rec.nume_produs,
+                DESCRIPTION: rec.descriere,
+                QUANTITY: parseFloat(rec.cantitate),
+                UNIT_OF_MEASURE: rec.unitate_masura,
+                LOW_STOCK_THRESHOLD: rec.prag_stoc_minim ? parseFloat(rec.prag_stoc_minim) : null,
+                EXPIRY_DATE: rec.data_expirare ? new Date(rec.data_expirare) : null,
+                CHECK_DATE: rec.data_verificare ? new Date(rec.data_verificare) : null
+            });
+        });
+
+        connection = await oracledb.getConnection(dbConfig);
+
+        const StorageImportType = await connection.getDbObjectClass("STORAGE_IMPORT_TABLE");
+        const ItemImportType = await connection.getDbObjectClass("ITEM_IMPORT_TABLE");
+
+        const storagesToImport = new StorageImportType(storagesFromCsv);
+        const itemsToImport = new ItemImportType(itemsFromCsv);
+
+        const result = await connection.execute(
+            `BEGIN import_user_data(:p_user_id, :p_storages, :p_items, :o_error_message); END;`,
+            {
+                p_user_id: userDataFromToken.userId,
+                p_storages: storagesToImport,
+                p_items: itemsToImport,
+                o_error_message: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 500 }
+            }
+        );
+
+        const errorMessage = result.outBinds.o_error_message;
+        if (errorMessage) {
+            throw new Error(errorMessage);
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ message: 'Datele din CSV au fost importate cu succes!' }));
+
+    } catch (err) {
+        console.error("Eroare la import CSV:", err);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ message: err.message || 'Eroare interna la procesarea importului CSV.' }));
+    } finally {
+        if (connection) { try { await connection.close(); } catch (e) { console.error(e); } }
+    }
+}
+else if (req.url === '/api/import/xml' && req.method === 'POST') {
+    const userDataFromToken = authenticateToken(req, res);
+    if (!userDataFromToken) return;
+
+    let connection;
+    try {
+        const xmlData = await new Promise(resolve => {
+            let body = '';
+            req.on('data', chunk => body += chunk.toString());
+            req.on('end', () => resolve(body));
+        });
+
+        if (!xmlData.trim()) {
+            throw new Error("Datele XML trimise sunt goale.");
+        }
+
+        const parser = new XMLParser();
+        let parsedData = parser.parse(xmlData);
+        
+        const importData = parsedData.export;
+        if (!importData || !importData.data || !importData.data.storages || !importData.data.items) {
+             throw new Error("Formatul fisierului XML este invalid sau incomplet.");
+        }
+
+        const storagesArray = Array.isArray(importData.data.storages.storage) ? importData.data.storages.storage : [importData.data.storages.storage];
+        const itemsArray = Array.isArray(importData.data.items.item) ? importData.data.items.item : [importData.data.items.item];
+        
+        const storagesForDB = storagesArray.map(s => {
+            if (!s || s.name === undefined || s.name === null) return null;
+            return {
+                NAME: String(s.name),
+                TITLE_BAR_COLOR: s.titleBarColor ? String(s.titleBarColor) : '#0058DD',
+                TITLE_BAR_TEXT_COLOR: s.titleBarTextColor ? String(s.titleBarTextColor) : '#FFFFFF'
+            };
+        }).filter(Boolean);
+
+        const itemsForDB = itemsArray.map(i => {
+            if (!i || i.name === undefined || i.name === null) return null;
+            const storageForThisItem = storagesArray.find(s => s.storageId === i.storageId);
+            const quantity = parseFloat(i.quantity);
+            const lowStock = i.lowStockThreshold !== undefined && i.lowStockThreshold !== null ? parseFloat(i.lowStockThreshold) : null;
+            
+            return {
+                STORAGE_NAME: storageForThisItem ? String(storageForThisItem.name) : null,
+                CATEGORY_NAME: null,
+                NAME: String(i.name),
+                DESCRIPTION: i.description ? String(i.description) : null,
+                QUANTITY: isNaN(quantity) ? 0 : quantity,
+                UNIT_OF_MEASURE: i.unitOfMeasure ? String(i.unitOfMeasure) : 'buc',
+                LOW_STOCK_THRESHOLD: isNaN(lowStock) ? null : lowStock,
+                EXPIRY_DATE: i.expiryDate ? new Date(i.expiryDate) : null,
+                CHECK_DATE: i.checkDate ? new Date(i.checkDate) : null
+            };
+        }).filter(Boolean);
+
+        connection = await oracledb.getConnection(dbConfig);
+        
+        const StorageImportType = await connection.getDbObjectClass("STORAGE_IMPORT_TABLE");
+        const ItemImportType = await connection.getDbObjectClass("ITEM_IMPORT_TABLE");
+
+        const storagesToImport = new StorageImportType(storagesForDB);
+        const itemsToImport = new ItemImportType(itemsForDB);
+
+        const result = await connection.execute(
+            `BEGIN import_user_data(:p_user_id, :p_storages, :p_items, :o_error_message); END;`,
+            {
+                p_user_id: userDataFromToken.userId,
+                p_storages: storagesToImport,
+                p_items: itemsToImport,
+                o_error_message: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 500 }
+            }
+        );
+
+        const errorMessage = result.outBinds.o_error_message;
+        if (errorMessage) {
+            throw new Error(errorMessage);
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ message: 'Datele din XML au fost importate cu succes!' }));
+
+    } catch (err) {
+        console.error("Eroare la import XML:", err);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ message: err.message || 'Eroare interna la procesarea importului XML.' }));
+    } finally {
+        if (connection) { try { await connection.close(); } catch (e) { console.error(e); } }
+    }
+}
+  else if (req.url === '/api/statistics' && req.method === 'GET') {
+        const userDataFromToken = authenticateToken(req, res);
+        if (!userDataFromToken) return;
+    
+        let connection;
+        try {
+            connection = await oracledb.getConnection(dbConfig);
+            const result = await connection.execute(
+                `BEGIN get_user_statistics(:p_user_id, :o_general_stats_cursor, :o_low_stock_cursor, :o_category_dist_cursor, :o_error_message); END;`,
+                {
+                    p_user_id: userDataFromToken.userId,
+                    o_general_stats_cursor: { dir: oracledb.BIND_OUT, type: oracledb.CURSOR },
+                    o_low_stock_cursor: { dir: oracledb.BIND_OUT, type: oracledb.CURSOR },
+                    o_category_dist_cursor: { dir: oracledb.BIND_OUT, type: oracledb.CURSOR },
+                    o_error_message: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 500 }
+                }
+            );
+    
+            const errorMessage = result.outBinds.o_error_message;
+            if (errorMessage) {
+                throw new Error(errorMessage);
+            }
+    
+            const generalStatsCursor = result.outBinds.o_general_stats_cursor;
+            const lowStockCursor = result.outBinds.o_low_stock_cursor;
+            const categoryDistCursor = result.outBinds.o_category_dist_cursor;
+            
+            let generalStats = {};
+            let lowStockItems = [];
+            let categoryDistribution = [];
+            let row;
+    
+            while ((row = await generalStatsCursor.getRow())) {
+                generalStats = { totalStorages: row[0], totalItems: row[1] };
+            }
+            await generalStatsCursor.close();
+    
+            while ((row = await lowStockCursor.getRow())) {
+                lowStockItems.push({ name: row[0], quantity: row[1], unitOfMeasure: row[2], threshold: row[3], storageName: row[4] });
+            }
+            await lowStockCursor.close();
+            
+            while ((row = await categoryDistCursor.getRow())) {
+                categoryDistribution.push({ categoryName: row[0], itemCount: row[1] });
+            }
+            await categoryDistCursor.close();
+    
+            const finalStats = {
+                general: generalStats,
+                lowStockItems: lowStockItems,
+                categoryDistribution: categoryDistribution
+            };
+            
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(finalStats));
+    
+        } catch (err) {
+            console.error("Eroare la generarea statisticilor:", err);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ message: 'Eroare interna la generarea statisticilor.' }));
+        } finally {
+            if (connection) { 
+                try { await connection.close(); } catch (e) { console.error("Eroare la inchiderea conexiunii:", e); }
+            }
+        }
+    }
     else {
         res.writeHead(404, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ message: 'Endpoint negasit.' }));
     }
 });
+async function connectToDatabaseWithRetry(retries = 30, delay = 10000) {
+    for (let i = 1; i <= retries; i++) {
+        try {
+            console.log(`[DB] Incercarea #${i} de a stabili conexiunea cu baza de date...`);
+            const connection = await oracledb.getConnection(dbConfig);
+            console.log("[DB] Conexiune la baza de date stabilita cu succes!");
+            await connection.close();
+            return true;
+        } catch (err) {
+            console.error(`[DB] Conexiunea a esuat: ${err.message}`);
+            if (i < retries) {
+                console.log(`[DB] Se reincearca in ${delay / 1000} secunde...`);
+                await new Promise(res => setTimeout(res, delay));
+            } else {
+                console.error("[DB] Nu s-a putut stabili conexiunea cu baza de date dupa mai multe incercari.");
+                return false;
+            }
+        }
+    }
+}
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log(`Serverul Node.js ruleaza pe portul ${PORT}`);
-    console.log('Folosind configuratia de DB:', dbConfig.user, dbConfig.connectString);
-});
+async function startServer() {
+    console.log("Se asteapta ca baza de date sa fie gata...");
+    const dbReady = await connectToDatabaseWithRetry();
+
+    if (dbReady) {
+        const PORT = process.env.PORT || 3000;
+        server.listen(PORT, () => {
+            console.log(`=================================================`);
+            console.log(`Serverul Node.js ruleaza pe portul ${PORT}`);
+            console.log(`Folosind configuratia de DB: ${dbConfig.user} @ ${dbConfig.connectString}`);
+            console.log(`=================================================`);
+        });
+    } else {
+        console.error("SERVERUL NU A PORNIT: Conexiunea la baza de date nu a putut fi stabilita.");
+        process.exit(1);
+    }
+}
+
+startServer();

@@ -1,9 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // ==== LOGICA PENTRU PAGINA login.html ====
     const loginButton = document.getElementById('login-button');
     if (loginButton) {
         loginButton.addEventListener('click', handleLogin);
-        // Atasam event listener pentru modalul de parola uitata
         document.getElementById('open-forgot-password-link').addEventListener('click', (e) => {
             e.preventDefault();
             openForgotPasswordModal();
@@ -16,13 +14,11 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('login-password').addEventListener('keypress', (e) => { if (e.key === 'Enter') handleLogin(); });
     }
 
-    // ==== LOGICA PENTRU PAGINA register.html ====
     const registerButton = document.getElementById('register-button');
     if (registerButton) {
         registerButton.addEventListener('click', handleRegister);
     }
     
-    // ==== LOGICA PENTRU PAGINA cod-resetare.html ====
     const resetWithCodeButton = document.getElementById('reset-with-code-button');
     if (resetWithCodeButton) {
         resetWithCodeButton.addEventListener('click', handleResetWithCode);
@@ -33,7 +29,6 @@ function displayAuthMessage(containerId, message, isError = true) {
     const messageDiv = document.getElementById(containerId);
     if (!messageDiv) return;
 
-    // Ascunde celalalt container de mesaj pentru a evita suprapunerea
     if (containerId.includes('error')) {
         const successId = containerId.replace('error', 'success');
         const successDiv = document.getElementById(successId);
