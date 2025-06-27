@@ -1,97 +1,54 @@
-
-CREATE OR REPLACE PROCEDURE create_notification (
-    p_user_id               IN notifications.user_id%TYPE,
-    p_item_id               IN notifications.item_id%TYPE,
-    p_notification_type     IN notifications.notification_type%TYPE,
-    p_threshold             IN notifications.threshold%TYPE,
-    p_trigger_time          IN notifications.trigger_time%TYPE,
-    p_notify_on_site        IN notifications.notify_on_site%TYPE,
-    p_notify_by_email       IN notifications.notify_by_email%TYPE,
-    o_notification_id       OUT notifications.notification_id%TYPE,
-    o_error_message         OUT VARCHAR2
-) AS
-    v_item_belongs_to_user NUMBER;
 BEGIN
-    o_notification_id := NULL;
-    o_error_message := NULL;
-
-    SELECT COUNT(*) INTO v_item_belongs_to_user
-    FROM items
-    WHERE item_id = p_item_id AND user_id = p_user_id;
-
-    IF v_item_belongs_to_user = 0 THEN
-        o_error_message := 'Produsul selectat nu exista sau nu va apartine.';
-        RETURN;
-    END IF;
-
-    INSERT INTO notifications (
-        user_id, item_id, notification_type, threshold, 
-        trigger_time, notify_on_site, notify_by_email
-    ) VALUES (
-        p_user_id, p_item_id, p_notification_type, p_threshold,
-        p_trigger_time, p_notify_on_site, p_notify_by_email
-    ) RETURNING notification_id INTO o_notification_id;
-
-    COMMIT;
-
-EXCEPTION
-    WHEN OTHERS THEN
-        ROLLBACK;
-        o_error_message := 'Eroare SQL la crearea notificarii: ' || SQLERRM;
-END create_notification;
+  EXECUTE IMMEDIATE 'DROP TRIGGER trg_notifications_bir';
+EXCEPTION WHEN OTHERS THEN IF SQLCODE != -4080 THEN RAISE; END IF;
+END;
 /
 
-CREATE OR REPLACE PROCEDURE get_user_notifications (
-    p_user_id               IN users.user_id%TYPE,
-    o_notifications_cursor  OUT SYS_REFCURSOR,
-    o_error_message         OUT VARCHAR2
-) AS
 BEGIN
-    o_error_message := NULL;
-    OPEN o_notifications_cursor FOR
-        SELECT 
-            n.notification_id, 
-            n.item_id, 
-            i.name AS item_name,
-            n.notification_type, 
-            n.threshold,
-            n.trigger_time,
-            n.notify_on_site,
-            n.notify_by_email,
-            n.is_active
-        FROM notifications n
-        JOIN items i ON n.item_id = i.item_id
-        WHERE n.user_id = p_user_id
-        ORDER BY n.created_at DESC;
-EXCEPTION
-    WHEN OTHERS THEN
-        o_error_message := 'Eroare SQL la citirea notificarilor: ' || SQLERRM;
-END get_user_notifications;
+  EXECUTE IMMEDIATE 'DROP TABLE notifications CASCADE CONSTRAINTS';
+EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF;
+END;
 /
 
-CREATE OR REPLACE PROCEDURE delete_notification (
-    p_notification_id   IN notifications.notification_id%TYPE,
-    p_user_id           IN notifications.user_id%TYPE,
-    o_rows_deleted      OUT NUMBER,
-    o_error_message     OUT VARCHAR2
-) AS
 BEGIN
-    o_rows_deleted := 0;
-    o_error_message := NULL;
+  EXECUTE IMMEDIATE 'DROP SEQUENCE notifications_seq';
+EXCEPTION WHEN OTHERS THEN IF SQLCODE != -2289 THEN RAISE; END IF; 
+END;
+/
 
-    DELETE FROM notifications
-    WHERE notification_id = p_notification_id AND user_id = p_user_id;
+CREATE SEQUENCE notifications_seq
+  START WITH 1
+  INCREMENT BY 1
+  NOCACHE
+  NOCYCLE;
+/
 
-    o_rows_deleted := SQL%ROWCOUNT;
+CREATE TABLE notifications (
+    notification_id         NUMBER PRIMARY KEY,
+    user_id                 NUMBER NOT NULL,
+    item_id                 NUMBER NOT NULL,
+    notification_type       VARCHAR2(20) NOT NULL,
+    threshold               NUMBER,
+    trigger_time            VARCHAR2(5),
+    notify_on_site          NUMBER(1) DEFAULT 0 NOT NULL,
+    notify_by_email         NUMBER(1) DEFAULT 0 NOT NULL,
+    is_active               NUMBER(1) DEFAULT 1 NOT NULL,
+    created_at              TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_triggered_at       TIMESTAMP,
     
-    IF o_rows_deleted = 0 THEN
-        o_error_message := 'Notificarea nu a fost gasita sau nu aveti permisiunea sa o stergeti.';
-    END IF;
-    
-    COMMIT;
-EXCEPTION
-    WHEN OTHERS THEN
-        ROLLBACK;
-        o_error_message := 'Eroare SQL la stergerea notificarii: ' || SQLERRM;
-END delete_notification;
+    CONSTRAINT fk_notif_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    CONSTRAINT fk_notif_item FOREIGN KEY (item_id) REFERENCES items(item_id) ON DELETE CASCADE,
+    CONSTRAINT chk_notif_type CHECK (notification_type IN ('LOW_STOCK', 'SCHEDULED_UPDATE')),
+    CONSTRAINT chk_notif_method CHECK (notify_on_site = 1 OR notify_by_email = 1)
+);
+
+
+CREATE OR REPLACE TRIGGER trg_notifications_bir
+BEFORE INSERT ON notifications
+FOR EACH ROW
+BEGIN
+  IF :NEW.notification_id IS NULL THEN
+    SELECT notifications_seq.NEXTVAL INTO :NEW.notification_id FROM dual;
+  END IF;
+END;
 /

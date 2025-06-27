@@ -6,10 +6,9 @@ CREATE OR REPLACE PROCEDURE verify_and_update_password (
     o_error_message         OUT VARCHAR2
 ) AS
     v_user_id               users.user_id%TYPE;
-    v_token_id              password_reset_tokens.id%TYPE;
     v_token_record          password_reset_tokens%ROWTYPE;
 BEGIN
-    o_success := 0; 
+    o_success := 0;
     o_error_message := NULL;
 
     BEGIN
@@ -24,7 +23,7 @@ BEGIN
         SELECT * INTO v_token_record
         FROM password_reset_tokens
         WHERE user_id = v_user_id
-          AND token_plain = p_reset_code;
+          AND reset_code = p_reset_code;
     EXCEPTION
         WHEN NO_DATA_FOUND THEN
             o_error_message := 'Codul de resetare este invalid.';

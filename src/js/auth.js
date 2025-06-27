@@ -1,3 +1,4 @@
+const API_BASE_URL = `${window.location.protocol}//${window.location.hostname}:3000`;
 document.addEventListener('DOMContentLoaded', () => {
     const loginButton = document.getElementById('login-button');
     if (loginButton) {
@@ -68,7 +69,7 @@ async function handleLogin() {
     }
 
     try {
-        const response = await fetch('http://localhost:3000/api/login', {
+        const response = await fetch(`${API_BASE_URL}/api/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ identifier, password })
@@ -120,7 +121,7 @@ async function handleRegister() {
     }
 
     try {
-        const response = await fetch('http://localhost:3000/api/register', {
+        const response = await fetch(`${API_BASE_URL}/api/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, email, password })
@@ -164,7 +165,7 @@ async function handleForgotPassword() {
     }
     
     try {
-        const response = await fetch('http://localhost:3000/api/forgot-password', {
+        const response = await fetch(`${API_BASE_URL}/api/forgot-password`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email })
@@ -209,7 +210,7 @@ async function handleResetWithCode() {
     }
     
     try {
-        const response = await fetch('http://localhost:3000/api/reset-with-code', {
+        const response = await fetch(`${API_BASE_URL}/api/reset-with-code`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, code, newPassword })

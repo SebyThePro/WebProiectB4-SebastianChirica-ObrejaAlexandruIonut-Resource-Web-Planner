@@ -21,7 +21,6 @@ BEGIN
     o_rows_updated := 0;
     o_error_message := NULL;
 
-    -- Validari initiale pentru parametrii primiti
     IF p_storage_id IS NULL THEN
         o_error_message := 'ID-ul depozitului este obligatoriu.';
         RETURN;
@@ -39,7 +38,6 @@ BEGIN
         RETURN;
     END IF;
 
-    -- Verificam daca item-ul exista si apartine utilizatorului
     SELECT COUNT(*) INTO v_item_exists
     FROM items
     WHERE item_id = p_item_id AND user_id = p_user_id;
@@ -49,7 +47,6 @@ BEGIN
         RETURN;
     END IF;
 
-    -- Verificam daca noul depozit apartine utilizatorului
     SELECT COUNT(*) INTO v_storage_belongs_to_user
     FROM storages
     WHERE storage_id = p_storage_id AND user_id = p_user_id;
@@ -59,7 +56,6 @@ BEGIN
         RETURN;
     END IF;
 
-    -- Daca este specificata o categorie, verificam daca apartine utilizatorului
     IF p_category_id IS NOT NULL THEN
         SELECT COUNT(*) INTO v_category_belongs_to_user
         FROM categories
@@ -71,7 +67,6 @@ BEGIN
         END IF;
     END IF;
 
-    -- Daca toate verificarile au trecut, facem update
     UPDATE items
     SET name = TRIM(p_new_name),
         description = TRIM(p_new_description),

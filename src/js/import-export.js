@@ -28,7 +28,7 @@ async function handleExport(format) {
     }
 
     try {
-        const response = await fetch(`http://localhost:3000/api/export/${format}`, {
+        const response = await fetch(`API_BASE_URL/api/export/${format}`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -108,7 +108,7 @@ async function handleImport() {
     }
 
     try {
-        const response = await fetch(`http://localhost:3000/api/import/${format}`, {
+        const response = await fetch(`API_BASE_URL/api/import/${format}`, {
             method: 'POST',
             headers: {
                 'Content-Type': contentType,
