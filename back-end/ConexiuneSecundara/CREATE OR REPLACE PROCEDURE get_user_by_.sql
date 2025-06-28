@@ -1,5 +1,5 @@
 CREATE OR REPLACE PROCEDURE get_user_by_identifier (
-    p_identifier IN VARCHAR2,                -- Poate fi username sau email
+    p_identifier IN VARCHAR2,                
     o_user_id OUT users.user_id%TYPE,
     o_username OUT users.username%TYPE,
     o_email OUT users.email%TYPE,
@@ -26,7 +26,7 @@ BEGIN
         WHEN NO_DATA_FOUND THEN
             o_error_message := 'Utilizator negasit sau credentiale invalide.';
             RETURN;
-        WHEN TOO_MANY_ROWS THEN -- Desi username si email sunt UNIQUE, e o masura de precautie
+        WHEN TOO_MANY_ROWS THEN
             o_error_message := 'Date inconsistente pentru identificator (multiple potriviri).';
             RETURN;
         WHEN OTHERS THEN
@@ -34,7 +34,7 @@ BEGIN
             RETURN;
     END;
 
-    IF o_user_id IS NULL THEN -- Daca totusi nu s-a gasit (redundant daca NO_DATA_FOUND e prins, dar ca siguranta)
+    IF o_user_id IS NULL THEN
         o_error_message := 'Utilizator negasit.';
     END IF;
 
