@@ -41,16 +41,16 @@ async function parseRequestBody(req) {
 
 
 async function sendResetEmailWithApi(recipientEmail, resetCode) {
-    let apiInstance = new Brevo.TransactionalEmailsApi();
-
+    let defaultClient = Brevo.ApiClient.instance;
     let apiKey = defaultClient.authentications['api-key'];
-    apiKey.apiKey = '14TcD82CIXJ7qZWa';
+    apiKey.apiKey = '14TcD82CIXJ7qZWa'; 
 
+    let apiInstance = new Brevo.TransactionalEmailsApi();
     let sendSmtpEmail = new Brevo.SendSmtpEmail(); 
-    
+
     sendSmtpEmail.subject = "Codul tau de Resetare Parola";
     sendSmtpEmail.htmlContent = `<p>Buna ziua,</p><p>Codul tau pentru resetarea parolei este: <strong>${resetCode}</strong></p><p>Acest cod este valabil pentru 15 minute.</p>`;
-    sendSmtpEmail.sender = {"name": "Admin Proiect Consumabile", "email": "sebychirica100@gmail.com"}; 
+    sendSmtpEmail.sender = {"name": "Admin Proiect Consumabile", "email": "sebychirica100@gmail.com"};
     sendSmtpEmail.to = [{"email": recipientEmail}];
 
     try {
@@ -59,26 +59,6 @@ async function sendResetEmailWithApi(recipientEmail, resetCode) {
     } catch (error) {
         console.error("Eroare la trimiterea email-ului prin API Brevo:", error);
         throw new Error("Serviciul de email nu a putut trimite mesajul."); 
-    }
-}
-function authenticateToken(req, res) {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-
-    if (token == null) {
-        res.writeHead(401, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ message: 'Token de autentificare lipsa.' }));
-        return null;
-    }
-
-    try {
-        const decodedToken = jwt.verify(token, JWT_SECRET);
-        return decodedToken;
-    } catch (err) {
-        console.error("Eroare la verificarea token-ului:", err.message);
-        res.writeHead(403, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ message: 'Token invalid sau expirat.' }));
-        return null;
     }
 }
 function serveStaticFile(res, filePath, contentType) {
