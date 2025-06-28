@@ -579,7 +579,7 @@ async function loadStorages() {
     }
 
     try {
-        const response = await fetch('${${API_BASE_URL}}/api/storages', {
+        const response = await fetch(`${API_BASE_URL}/api/storages`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`
