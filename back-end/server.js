@@ -194,7 +194,7 @@ if (!req.url.startsWith('/api/')) {
             res.end(JSON.stringify({ message: parseErr.message || 'Format JSON invalid in corpul cererii.' }));
         }
     }
-  else if (req.url === '/api/forgot-password' && req.method === 'POST') {
+else if (req.url === '/api/forgot-password' && req.method === 'POST') {
     try {
         const { email } = await parseRequestBody(req);
         if (!email) {
@@ -213,11 +213,11 @@ if (!req.url.startsWith('/api/')) {
             );
 
             await sendResetEmailWithApi(email, resetCode);
-            
+
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ message: 'Daca un cont cu acest email exista, un cod de resetare a fost trimis.' }));
 
-        } catch (err) { 
+        } catch (err) {
             console.error("Eroare la /api/forgot-password:", err);
             res.writeHead(500, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ message: 'Eroare interna la procesarea cererii.' }));
