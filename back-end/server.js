@@ -43,7 +43,7 @@ async function parseRequestBody(req) {
 async function sendResetEmailWithApi(recipientEmail, resetCode) {
     let apiInstance = new Brevo.TransactionalEmailsApi();
 
-    let apiKey = apiInstance.authentications['api-key'];
+    let apiKey = defaultClient.authentications['api-key'];
     apiKey.apiKey = '14TcD82CIXJ7qZWa';
 
     let sendSmtpEmail = new Brevo.SendSmtpEmail(); 
