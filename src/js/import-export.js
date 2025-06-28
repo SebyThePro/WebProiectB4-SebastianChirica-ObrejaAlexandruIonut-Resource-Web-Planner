@@ -30,7 +30,7 @@ async function handleExport(format) {
     const exportFormat = document.querySelector('input[name="export-format"]:checked').value;
     const url = `${API_BASE_URL}/api/export?format=${exportFormat}`;
     try {
-        const response = await fetch(`API_BASE_URL/api/export/${format}`, {
+        const response = await fetch(`${API_BASE_URL}/api/export/${format}`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
