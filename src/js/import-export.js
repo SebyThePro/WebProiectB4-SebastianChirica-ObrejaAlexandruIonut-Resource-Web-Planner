@@ -1,20 +1,23 @@
+
 const API_BASE_URL = `${window.location.protocol}//${window.location.hostname}:3000`;
+
 document.addEventListener('DOMContentLoaded', () => {
     const exportJsonBtn = document.getElementById('export-json-btn');
-    const exportCsvBtn = document.getElementById('export-csv-btn');
-    const exportXmlBtn = document.getElementById('export-xml-btn');
-    
-    const importBtn = document.getElementById('import-btn');
-
     if(exportJsonBtn) {
         exportJsonBtn.addEventListener('click', () => handleExport('json'));
     }
+
+    const exportCsvBtn = document.getElementById('export-csv-btn');
     if(exportCsvBtn) {
         exportCsvBtn.addEventListener('click', () => handleExport('csv'));
     }
+
+    const exportXmlBtn = document.getElementById('export-xml-btn');
     if(exportXmlBtn) {
         exportXmlBtn.addEventListener('click', () => handleExport('xml'));
     }
+
+    const importBtn = document.getElementById('import-btn');
     if(importBtn) {
         importBtn.addEventListener('click', handleImport);
     }
@@ -27,8 +30,7 @@ async function handleExport(format) {
         window.location.href = 'login.html';
         return;
     }
-    const exportFormat = document.querySelector('input[name="export-format"]:checked').value;
-    const url = `${API_BASE_URL}/api/export?format=${exportFormat}`;
+
     try {
         const response = await fetch(`${API_BASE_URL}/api/export/${format}`, {
             headers: {
@@ -91,12 +93,10 @@ async function handleImport() {
     } else if (format === 'csv') {
         contentType = 'text/csv';
         body = dataText;
-    }
-    else if (format === 'xml') { 
+    } else if (format === 'xml') {
         contentType = 'application/xml';
         body = dataText;
-    }
-     else {
+    } else {
         errorContainer.textContent = 'Format de import necunoscut.';
         errorContainer.style.display = 'block';
         return;
@@ -108,12 +108,9 @@ async function handleImport() {
         window.location.href = 'login.html';
         return;
     }
-    const formData = new FormData();
-    formData.append('importFile', file);
-
-    const url = `${API_BASE_URL}/api/import`;
+    
     try {
-        const response = await fetch(`API_BASE_URL/api/import/${format}`, {
+        const response = await fetch(`${API_BASE_URL}/api/import/${format}`, {
             method: 'POST',
             headers: {
                 'Content-Type': contentType,
