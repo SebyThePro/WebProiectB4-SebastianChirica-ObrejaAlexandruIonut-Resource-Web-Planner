@@ -50,8 +50,7 @@ async function sendResetEmailWithApi(recipientEmail, resetCode) {
 
     sendSmtpEmail.subject = "Codul tau de Resetare Parola";
     sendSmtpEmail.htmlContent = `<p>Buna ziua,</p><p>Codul tau pentru resetarea parolei este: <strong>${resetCode}</strong></p><p>Acest cod este valabil pentru 15 minute.</p>`;
-    sendSmtpEmail.sender = {"name": "Admin Proiect Consumabile", "email": "contact@proiectultau.com"}; // Schimba cu un email valid
-    sendSmtpEmail.to = [{"email": recipientEmail}];
+    sendSmtpEmail.sender = {"name": "Admin Proiect Consumabile", "email": "contact@proiectultau.com"};
 
     try {
         const data = await apiInstance.sendTransacEmail(sendSmtpEmail);
@@ -214,46 +213,43 @@ if (!req.url.startsWith('/api/')) {
             res.end(JSON.stringify({ message: parseErr.message || 'Format JSON invalid in corpul cererii.' }));
         }
     }
-    else if (req.url === '/api/forgot-password' && req.method === 'POST') {
-        try {
-            const { email } = await parseRequestBody(req);
-            if (!email) {
-                res.writeHead(400, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ message: 'Adresa de email este obligatorie.' }));
-                return;
-            }
-            const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
-            let connection;
-            try {
-                connection = await oracledb.getConnection(dbConfig);
-                await connection.execute(
-                    `BEGIN store_reset_code(:p_email, :p_reset_code, :o_error_message); END;`,
-                    { p_email: email, p_reset_code: resetCode, o_error_message: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 250 } }
-                );
-
-                const mailTransport = await setupEmailTransport();
-                await mailTransport.sendMail({
-                    from: '"Admin Proiect Consumabile" <sebychirica100@gmail.com>',
-                    to: email,
-                    subject: 'Codul tau de Resetare Parola',
-                    html: `<p>Buna ziua,</p><p>Codul tau pentru resetarea parolei este: <strong>${resetCode}</strong></p><p>Acest cod este valabil pentru 15 minute.</p>`
-                });
-                console.log(`Email de resetare cu codul ${resetCode} trimis cu succes catre ${email}.`);
-                await sendResetEmailWithApi(email, resetCode);
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ message: 'Daca un cont cu acest email exista, un cod de resetare a fost trimis.' }));
-            } catch (dbErr) {
-                console.error("Eroare DB la /api/forgot-password:", dbErr);
-                res.writeHead(500, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ message: 'Eroare interna la procesarea cererii.' }));
-            } finally {
-                if (connection) { try { await connection.close(); } catch (e) { console.error(e); } }
-            }
-        } catch (parseErr) {
+  else if (req.url === '/api/forgot-password' && req.method === 'POST') {
+    try {
+        const { email } = await parseRequestBody(req);
+        if (!email) {
             res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ message: 'Format JSON invalid.' }));
+            res.end(JSON.stringify({ message: 'Adresa de email este obligatorie.' }));
+            return;
         }
+
+        const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+        let connection;
+        try {
+            connection = await oracledb.getConnection(dbConfig);
+            await connection.execute(
+                `BEGIN store_reset_code(:p_email, :p_reset_code, :o_error_message); END;`,
+                { p_email: email, p_reset_code: resetCode, o_error_message: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 250 } }
+            );
+
+            await sendResetEmailWithApi(email, resetCode);
+            
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ message: 'Daca un cont cu acest email exista, un cod de resetare a fost trimis.' }));
+
+        } catch (err) { 
+            console.error("Eroare la /api/forgot-password:", err);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ message: 'Eroare interna la procesarea cererii.' }));
+        } finally {
+            if (connection) { 
+                try { await connection.close(); } catch(e) { console.error(e); }
+            }
+        }
+    } catch (parseErr) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ message: 'Format JSON invalid.' }));
     }
+}
      else if (req.url === '/api/reset-with-code' && req.method === 'POST') {
     try {
         const { email, code, newPassword } = await parseRequestBody(req);
