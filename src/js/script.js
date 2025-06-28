@@ -221,7 +221,7 @@ async function handleUpdateItem() {
 
     const token = localStorage.getItem('authToken');
     try {
-        const response = await fetch(`API_BASE_URL/api/items/${editingItemId}`, {
+        const response = await fetch(`${API_BASE_URL}/api/items/${editingItemId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify(updatedData)
@@ -579,7 +579,7 @@ async function loadStorages() {
     }
 
     try {
-        const response = await fetch('API_BASE_URL/api/storages', {
+        const response = await fetch('${${API_BASE_URL}}/api/storages', {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token}`
@@ -750,7 +750,7 @@ async function saveStorage() {
         titleBarTextColor: titleBarTextColor 
     };
 
-    let url = 'API_BASE_URL/api/storages';
+    let url = '${API_BASE_URL}/api/storages';
     let method = 'POST';
 
     if (editingStorageId) { 
@@ -953,7 +953,7 @@ async function deleteStorage(storageId, confirmTitle = "Confirmare Stergere") {
         }
 
         try {
-            const response = await fetch(`API_BASE_URL/api/storages/${numericStorageId}`, {
+            const response = await fetch(`${API_BASE_URL}/api/storages/${numericStorageId}`, {
                 method: 'DELETE',
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -996,7 +996,7 @@ async function renderProductsInCard(storageId, targetTableBodyElement) {
     targetTableBodyElement.innerHTML = '<tr><td colspan="4" class="xp-empty-message">Se incarca produsele...</td></tr>';
 
     try {
-        const response = await fetch(`API_BASE_URL/api/items?storageId=${storageId}`, {
+        const response = await fetch(`${API_BASE_URL}/api/items?storageId=${storageId}`, {
             method: 'GET',
             headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -1100,7 +1100,7 @@ async function addProductInCard(storageId, formElement, targetTableBodyElement, 
     };
 
     try {
-        const response = await fetch('API_BASE_URL/api/items', {
+        const response = await fetch('${API_BASE_URL}/api/items', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -1153,7 +1153,7 @@ async function deleteProductFromCard(storageId, itemId, productName = "acest pro
         }
 
         try {
-            const response = await fetch(`API_BASE_URL/api/items/${itemId}`, {
+            const response = await fetch(`${API_BASE_URL}/api/items/${itemId}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -1204,7 +1204,7 @@ async function loadUserNotifications() {
     const token = localStorage.getItem('authToken');
 
     try {
-        const response = await fetch('API_BASE_URL/api/notifications', {
+        const response = await fetch('${API_BASE_URL}/api/notifications', {
             headers: { 'Authorization': `Bearer ${token}` }
         });
 
@@ -1273,7 +1273,7 @@ async function openNewNotificationModal() {
 
     itemSelect.innerHTML = '<option value="">Se incarca...</option>';
     try {
-        const response = await fetch('API_BASE_URL/api/items', {
+        const response = await fetch('${API_BASE_URL}/api/items', {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!response.ok) throw new Error('Eroare la incarcarea produselor.');
@@ -1324,7 +1324,7 @@ async function deleteNotification(notificationId) {
         }
 
         try {
-            const response = await fetch(`API_BASE_URL/api/notifications/${notificationId}`, {
+            const response = await fetch(`${API_BASE_URL}/api/notifications/${notificationId}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -1390,7 +1390,7 @@ async function handleSaveNotification() {
 
     const token = localStorage.getItem('authToken');
     try {
-        const response = await fetch('API_BASE_URL/api/notifications', {
+        const response = await fetch('${API_BASE_URL}/api/notifications', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify(notificationData)
@@ -1417,7 +1417,7 @@ async function openStatisticsModal() {
     
     const token = localStorage.getItem('authToken');
     try {
-        const response = await fetch('API_BASE_URL/api/statistics', {
+        const response = await fetch('${API_BASE_URL}/api/statistics', {
             headers: { 'Authorization': `Bearer ${token}` }
         });
 
