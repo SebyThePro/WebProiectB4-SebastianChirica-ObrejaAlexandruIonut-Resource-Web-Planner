@@ -1081,7 +1081,7 @@ async function addProductInCard(storageId, formElement, targetTableBodyElement, 
     };
 
     try {
-        const response = await fetch('${API_BASE_URL}/api/items', {
+        const response = await fetch(`${API_BASE_URL}/api/items`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
