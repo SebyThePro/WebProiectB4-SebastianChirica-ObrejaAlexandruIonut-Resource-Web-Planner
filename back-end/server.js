@@ -50,7 +50,7 @@ async function sendResetEmailWithApi(recipientEmail, resetCode) {
 
     sendSmtpEmail.subject = "Codul tau de Resetare Parola";
     sendSmtpEmail.htmlContent = `<p>Buna ziua,</p><p>Codul tau pentru resetarea parolei este: <strong>${resetCode}</strong></p><p>Acest cod este valabil pentru 15 minute.</p>`;
-    sendSmtpEmail.sender = {"name": "Admin Proiect Consumabile", "email": "contact@proiectultau.com"};
+    sendSmtpEmail.sender = {"name": "Admin Proiect Consumabile", "email": "sebychirica100@gmail.com"};
 
     try {
         const data = await apiInstance.sendTransacEmail(sendSmtpEmail);
