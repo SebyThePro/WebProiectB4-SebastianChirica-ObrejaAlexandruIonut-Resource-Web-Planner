@@ -1,4 +1,4 @@
-
+const API_BASE_URL = `${window.location.protocol}//${window.location.hostname}:3000`;
 let storages = [];
 let editingStorageId = null;
 let confirmOkCallback = null;
