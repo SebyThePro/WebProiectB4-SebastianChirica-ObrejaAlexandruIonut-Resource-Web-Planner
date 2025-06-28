@@ -41,13 +41,14 @@ async function parseRequestBody(req) {
 
 
 async function sendResetEmailWithApi(recipientEmail, resetCode) {
+    let defaultClient = Brevo.ApiClient.instance;
+
+    let apiKey = defaultClient.authentications['api-key'];
+    apiKey.apiKey = '14TcD82CIXJ7qZWa'; 
+
     let apiInstance = new Brevo.TransactionalEmailsApi();
-
-    let apiKey = apiInstance.authentications['api-key'];
-    apiKey.apiKey = '14TcD82CIXJ7qZWa';
-
     let sendSmtpEmail = new Brevo.SendSmtpEmail(); 
-
+    
     sendSmtpEmail.subject = "Codul tau de Resetare Parola";
     sendSmtpEmail.htmlContent = `<p>Buna ziua,</p><p>Codul tau pentru resetarea parolei este: <strong>${resetCode}</strong></p><p>Acest cod este valabil pentru 15 minute.</p>`;
     sendSmtpEmail.sender = {"name": "Admin Proiect Consumabile", "email": "sebychirica100@gmail.com"}; 
@@ -57,7 +58,7 @@ async function sendResetEmailWithApi(recipientEmail, resetCode) {
         const data = await apiInstance.sendTransacEmail(sendSmtpEmail);
         console.log('Email trimis cu succes prin API Brevo. Message ID: ' + data.body.messageId);
     } catch (error) {
-        console.error("Eroare la trimiterea email-ului prin API Brevo:", error.message);
+        console.error("Eroare la trimiterea email-ului prin API Brevo:", error);
         throw new Error("Serviciul de email nu a putut trimite mesajul."); 
     }
 }
