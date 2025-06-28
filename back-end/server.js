@@ -1,3 +1,4 @@
+const Brevo = require('@getbrevo/brevo');
 const { XMLParser } = require("fast-xml-parser");
 const { parse } = require('csv-parse/sync');
 const { Parser } = require('json2csv');
@@ -39,17 +40,26 @@ async function parseRequestBody(req) {
 }
 
 
-async function setupEmailTransport() {
-    console.log("Se configureaza transportul de email prin Brevo...");
-    return nodemailer.createTransport({
-        host: 'smtp-relay.brevo.com',
-        port: 587,
-        secure: false, 
-        auth: {
-            user: '90b5f6001@smtp-brevo.com', 
-            pass: '14TcD82CIXJ7qZWa'  
-        }
-    });
+async function sendResetEmailWithApi(recipientEmail, resetCode) {
+    const defaultClient = Brevo.ApiClient.instance;
+    let apiKey = defaultClient.authentications['api-key'];
+    apiKey.apiKey = '14TcD82CIXJ7qZWa'; 
+
+    let apiInstance = new Brevo.TransactionalEmailsApi();
+    let sendSmtpEmail = new Brevo.SendSmtpEmail(); 
+
+    sendSmtpEmail.subject = "Codul tau de Resetare Parola";
+    sendSmtpEmail.htmlContent = `<p>Buna ziua,</p><p>Codul tau pentru resetarea parolei este: <strong>${resetCode}</strong></p><p>Acest cod este valabil pentru 15 minute.</p>`;
+    sendSmtpEmail.sender = {"name": "Admin Proiect Consumabile", "email": "contact@proiectultau.com"}; // Schimba cu un email valid
+    sendSmtpEmail.to = [{"email": recipientEmail}];
+
+    try {
+        const data = await apiInstance.sendTransacEmail(sendSmtpEmail);
+        console.log('Email trimis cu succes prin API Brevo. Message ID: ' + data.body.messageId);
+    } catch (error) {
+        console.error("Eroare la trimiterea email-ului prin API Brevo:", error);
+        throw error;
+    }
 }
 function authenticateToken(req, res) {
     const authHeader = req.headers['authorization'];
@@ -229,7 +239,7 @@ if (!req.url.startsWith('/api/')) {
                     html: `<p>Buna ziua,</p><p>Codul tau pentru resetarea parolei este: <strong>${resetCode}</strong></p><p>Acest cod este valabil pentru 15 minute.</p>`
                 });
                 console.log(`Email de resetare cu codul ${resetCode} trimis cu succes catre ${email}.`);
-                
+                await sendResetEmailWithApi(email, resetCode);
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ message: 'Daca un cont cu acest email exista, un cod de resetare a fost trimis.' }));
             } catch (dbErr) {
