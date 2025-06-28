@@ -1,4 +1,3 @@
-const Brevo = require('@getbrevo/brevo');
 const { XMLParser } = require("fast-xml-parser");
 const { parse } = require('csv-parse/sync');
 const { Parser } = require('json2csv');
@@ -40,24 +39,36 @@ async function parseRequestBody(req) {
 }
 
 
-async function sendResetEmailWithApi(recipientEmail, resetCode) {
-    let apiInstance = new Brevo.TransactionalEmailsApi();
+async function setupEmailTransport() {
+    console.log("Se configureaza transportul de email prin Brevo...");
+    return nodemailer.createTransport({
+        host: 'smtp-relay.brevo.com',
+        port: 587,
+        secure: false, 
+        auth: {
+            user: '90b5f6001@smtp-brevo.com', 
+            pass: '14TcD82CIXJ7qZWa'  
+        }
+    });
+}
+function authenticateToken(req, res) {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
 
-    let apiKey = apiInstance.authentications['api-key'];
-    apiKey.apiKey = '14TcD82CIXJ7qZWa'; 
-
-    let sendSmtpEmail = new Brevo.SendSmtpEmail(); 
-    
-    sendSmtpEmail.subject = "Codul tau de Resetare Parola";
-    sendSmtpEmail.htmlContent = `<p>Buna ziua,</p><p>Codul tau pentru resetarea parolei este: <strong>${resetCode}</strong></p><p>Acest cod este valabil pentru 15 minute.</p>`;
-    sendSmtpEmail.sender = {"name": "Admin Proiect Consumabile", "email": "90b5f6001@smtp-brevo.com"}; 
+    if (token == null) {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ message: 'Token de autentificare lipsa.' }));
+        return null;
+    }
 
     try {
-        const data = await apiInstance.sendTransacEmail(sendSmtpEmail);
-        console.log('Email trimis cu succes prin API Brevo. Message ID: ' + data.body.messageId);
-    } catch (error) {
-        console.error("Eroare la trimiterea email-ului prin API Brevo:", error);
-        throw new Error("Serviciul de email nu a putut trimite mesajul."); 
+        const decodedToken = jwt.verify(token, JWT_SECRET);
+        return decodedToken;
+    } catch (err) {
+        console.error("Eroare la verificarea token-ului:", err.message);
+        res.writeHead(403, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ message: 'Token invalid sau expirat.' }));
+        return null;
     }
 }
 function serveStaticFile(res, filePath, contentType) {
@@ -193,43 +204,46 @@ if (!req.url.startsWith('/api/')) {
             res.end(JSON.stringify({ message: parseErr.message || 'Format JSON invalid in corpul cererii.' }));
         }
     }
-else if (req.url === '/api/forgot-password' && req.method === 'POST') {
-    try {
-        const { email } = await parseRequestBody(req);
-        if (!email) {
-            res.writeHead(400, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ message: 'Adresa de email este obligatorie.' }));
-            return;
-        }
-
-        const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
-        let connection;
+    else if (req.url === '/api/forgot-password' && req.method === 'POST') {
         try {
-            connection = await oracledb.getConnection(dbConfig);
-            await connection.execute(
-                `BEGIN store_reset_code(:p_email, :p_reset_code, :o_error_message); END;`,
-                { p_email: email, p_reset_code: resetCode, o_error_message: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 250 } }
-            );
-
-            await sendResetEmailWithApi(email, resetCode);
-
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ message: 'Daca un cont cu acest email exista, un cod de resetare a fost trimis.' }));
-
-        } catch (err) {
-            console.error("Eroare la /api/forgot-password:", err);
-            res.writeHead(500, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ message: 'Eroare interna la procesarea cererii.' }));
-        } finally {
-            if (connection) { 
-                try { await connection.close(); } catch(e) { console.error(e); }
+            const { email } = await parseRequestBody(req);
+            if (!email) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ message: 'Adresa de email este obligatorie.' }));
+                return;
             }
+            const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+            let connection;
+            try {
+                connection = await oracledb.getConnection(dbConfig);
+                await connection.execute(
+                    `BEGIN store_reset_code(:p_email, :p_reset_code, :o_error_message); END;`,
+                    { p_email: email, p_reset_code: resetCode, o_error_message: { dir: oracledb.BIND_OUT, type: oracledb.STRING, maxSize: 250 } }
+                );
+
+                const mailTransport = await setupEmailTransport();
+                await mailTransport.sendMail({
+                    from: '"Admin Proiect Consumabile" <sebychirica100@gmail.com>',
+                    to: email,
+                    subject: 'Codul tau de Resetare Parola',
+                    html: `<p>Buna ziua,</p><p>Codul tau pentru resetarea parolei este: <strong>${resetCode}</strong></p><p>Acest cod este valabil pentru 15 minute.</p>`
+                });
+                console.log(`Email de resetare cu codul ${resetCode} trimis cu succes catre ${email}.`);
+                
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ message: 'Daca un cont cu acest email exista, un cod de resetare a fost trimis.' }));
+            } catch (dbErr) {
+                console.error("Eroare DB la /api/forgot-password:", dbErr);
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ message: 'Eroare interna la procesarea cererii.' }));
+            } finally {
+                if (connection) { try { await connection.close(); } catch (e) { console.error(e); } }
+            }
+        } catch (parseErr) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ message: 'Format JSON invalid.' }));
         }
-    } catch (parseErr) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ message: 'Format JSON invalid.' }));
     }
-}
      else if (req.url === '/api/reset-with-code' && req.method === 'POST') {
     try {
         const { email, code, newPassword } = await parseRequestBody(req);
