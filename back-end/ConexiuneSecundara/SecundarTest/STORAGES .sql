@@ -1,3 +1,22 @@
+
+BEGIN
+  EXECUTE IMMEDIATE 'DROP TRIGGER trg_storages_before_insert';
+EXCEPTION WHEN OTHERS THEN IF SQLCODE != -4080 THEN RAISE; END IF;
+END;
+/
+
+BEGIN
+  EXECUTE IMMEDIATE 'DROP TABLE storages CASCADE CONSTRAINTS';
+EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF;
+END;
+/
+
+BEGIN
+  EXECUTE IMMEDIATE 'DROP SEQUENCE storages_seq';
+EXCEPTION WHEN OTHERS THEN IF SQLCODE != -2289 THEN RAISE; END IF; 
+END;
+/
+
 CREATE TABLE storages (
     storage_id NUMBER PRIMARY KEY,
     user_id NUMBER NOT NULL,
@@ -6,11 +25,13 @@ CREATE TABLE storages (
     title_bar_text_color VARCHAR2(20),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_storage_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
-    CONSTRAINT uq_user_storage_name UNIQUE (user_id, name)
+    CONSTRAINT fk_storage_user_v3 FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+    CONSTRAINT uq_user_storage_name_v3 UNIQUE (user_id, name)
 );
 
-CREATE SEQUENCE storages_seq START WITH 1 INCREMENT BY 1;
+
+CREATE SEQUENCE storages_seq START WITH 1 INCREMENT BY 1 NOCACHE NOCYCLE;
+/
 
 CREATE OR REPLACE TRIGGER trg_storages_before_insert
 BEFORE INSERT ON storages
@@ -19,5 +40,6 @@ BEGIN
     IF :NEW.storage_id IS NULL THEN
         SELECT storages_seq.NEXTVAL INTO :NEW.storage_id FROM dual;
     END IF;
+    :NEW.last_updated := SYSTIMESTAMP;
 END;
 /
