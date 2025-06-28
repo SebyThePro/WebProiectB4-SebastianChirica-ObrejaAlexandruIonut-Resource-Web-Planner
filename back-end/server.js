@@ -40,34 +40,16 @@ async function parseRequestBody(req) {
 
 
 async function setupEmailTransport() {
-    const useEthereal = false;
-
-    if (useEthereal) {
-        let nodemailerTestAccount = await nodemailer.createTestAccount();
-        console.log("Ethereal test account CREAT (sau refolosit):");
-        console.log("User:", nodemailerTestAccount.user);
-        console.log("Pass:", nodemailerTestAccount.pass);
-        console.log("Previzualizeaza emailurile trimise la: " + nodemailer.getTestMessageUrl({messageId: 'test-id'}));
-
-        return nodemailer.createTransport({
-            host: 'smtp.ethereal.email',
-            port: 587,
-            secure: false,
-            auth: {
-                user: nodemailerTestAccount.user,
-                pass: nodemailerTestAccount.pass,
-            },
-        });
-    } else {
-        console.log("Se incearca configurarea transportului Gmail...");
-        return nodemailer.createTransport({
-            service: 'gmail',
-            auth: {
-                user: 'sebychirica100@gmail.com',
-                pass: 'gradqzdkjzrwdjtd'
-            }
-        });
-    }
+    console.log("Se configureaza transportul de email prin Brevo...");
+    return nodemailer.createTransport({
+        host: 'smtp-relay.brevo.com',
+        port: 587,
+        secure: false, 
+        auth: {
+            user: '90b5f6001@smtp-brevo.com', 
+            pass: '14TcD82CIXJ7qZWa'  
+        }
+    });
 }
 function authenticateToken(req, res) {
     const authHeader = req.headers['authorization'];
