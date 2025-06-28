@@ -750,7 +750,7 @@ async function saveStorage() {
         titleBarTextColor: titleBarTextColor 
     };
 
-    let url = '${API_BASE_URL}/api/storages';
+    let url = `${API_BASE_URL}/api/storages`;
     let method = 'POST';
 
     if (editingStorageId) { 
@@ -778,25 +778,7 @@ async function saveStorage() {
             throw new Error(data.message || `Eroare HTTP: ${response.status}`);
         }
 
-        if (method === 'POST' && data.storageId) { 
-            const newStorage = {
-                id: data.storageId,
-                name: data.name,
-                titleBarColor: data.titleBarColor,
-                titleBarTextColor: data.titleBarTextColor, 
-                products: []
-            };
-            storages.push(newStorage);
-        } else if (method === 'PUT' && editingStorageId) { 
-            const storageIndex = storages.findIndex(s => s.id === editingStorageId);
-            if (storageIndex > -1) {
-                storages[storageIndex].name = data.name || name; 
-                storages[storageIndex].titleBarColor = data.titleBarColor || selectedTitleBarColor;
-                storages[storageIndex].titleBarTextColor = data.titleBarTextColor || titleBarTextColor;
-            }
-        }
-        
-        renderStorages();
+        await loadStorages();
         closeStorageModal();
         showInfoModal(data.message || (method === 'POST' ? "Depozit adaugat cu succes!" : "Depozit actualizat cu succes!"), "Succes");
 
@@ -807,7 +789,6 @@ async function saveStorage() {
         }
     }
 }
-
 function renderStorages() {
     const storagesListDiv = document.getElementById('storages-list');
     if (!storagesListDiv) return;
